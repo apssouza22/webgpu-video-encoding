@@ -1,0 +1,20 @@
+{
+  "name": "gpu-video-export",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Minimal GPU + OffscreenCanvas video export with WebCodecs and MediaBunny",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "mediabunny": "file:../MasterSelects/node_modules/mediabunny"
+  },
+  "devDependencies": {
+    "@webgpu/types": "^0.1.66",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.2"
+  }
+}
