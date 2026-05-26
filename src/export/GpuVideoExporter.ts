@@ -7,7 +7,6 @@ import { AudioEncoderService } from './AudioEncoderService';
 import { ResolvedExportTimeline, resolveExportTimeline } from './resolveExportTimeline';
 import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
-import { MediaBunnyVideoFrameSource } from '../media/VideoFrameSource';
 import { buildRenderFrameContext } from '../composition';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
@@ -27,40 +26,43 @@ export class GpuVideoExporter {
     const device = await adapter.requestDevice();
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 
-    const videoSource = await MediaBunnyVideoFrameSource.open(composition.video.url);
-    const overlay = await loadImage(composition.image.url);
-
-    const sourceDuration = Number.isFinite(videoSource.duration) ? videoSource.duration : 0;
-    const timeline = resolveExportTimeline(composition, sourceDuration);
-    const exportDuration = timeline.duration;
-
-    const totalFrames = Math.ceil(exportDuration * composition.fps);
-    const frameDurationUs = Math.round(1_000_000 / composition.fps);
-    const { includeAudio, videoEncoder } = await this.createVideoEncoder(
-      onProgress,
-      totalFrames,
-      composition,
-      timeline,
-    );
+    if (!composition.video) {
+      throw new Error('Composition must include at least one video layer');
+    }
 
     const exportCanvas = new ExportCanvas();
-    const canvasContext = exportCanvas.init(device, composition.width, composition.height);
-    const compositor = await GpuCompositor.create(
-      device,
-      canvasFormat,
-    );
+    let compositor: GpuCompositor | null = null;
 
     try {
+      await composition.openLayerSources();
+      const overlay = composition.image ? await loadImage(composition.image.url) : null;
+
+      const timeline = resolveExportTimeline(composition);
+      const exportDuration = timeline.duration;
+
+      const totalFrames = Math.ceil(exportDuration * composition.fps);
+      const frameDurationUs = Math.round(1_000_000 / composition.fps);
+      const { includeAudio, videoEncoder } = await this.createVideoEncoder(
+        onProgress,
+        totalFrames,
+        composition,
+        timeline,
+      );
+
+      const canvasContext = exportCanvas.init(device, composition.width, composition.height);
+      compositor = await GpuCompositor.create(
+        device,
+        canvasFormat,
+      );
+
       const frameContexts = this.buildRenderFrameContexts(
         composition,
         timeline,
         totalFrames,
         frameDurationUs,
       );
-      let videoSourceTimes = this.getVideoSourceTimes(frameContexts, timeline);
       const frameRender = new FrameRender({
         frameDurationUs,
-        sourceFrames: videoSource.framesAtTimestamps(videoSourceTimes),
         compositor,
         canvasContext,
         overlay,
@@ -96,9 +98,9 @@ export class GpuVideoExporter {
 
       return blob;
     } finally {
-      compositor.destroy();
+      compositor?.destroy();
       exportCanvas.destroy();
-      videoSource.dispose();
+      composition.disposeLayerSources();
     }
   }
 
@@ -121,11 +123,10 @@ export class GpuVideoExporter {
         message: 'Decoding audio from video clip (MediaBunny)…',
       });
 
-      audioBuffer = await extractAudioFromUrl(
-        composition.audio.url,
-        composition.audio.start,
-        timeline.audioDuration,
-      );
+      const videoClip = composition.video;
+      audioBuffer = videoClip
+        ? await extractAudioFromUrl(videoClip.url, 0, timeline.audioDuration)
+        : null;
 
       if (audioBuffer) {
         includeAudio = true;
@@ -160,30 +161,9 @@ export class GpuVideoExporter {
     frameDurationUs: number,
   ): RenderFrameContext[] {
     return Array.from({ length: totalFrames }, (_, frame) =>
-      buildRenderFrameContext(composition, frame, frameDurationUs, {
-        video: timeline.videoDuration,
-        image: timeline.imageDuration,
-      }),
+      buildRenderFrameContext(composition, frame, frameDurationUs, timeline.clipDurations),
     );
   }
-
-  private getVideoSourceTimes(
-    frameContexts: RenderFrameContext[],
-    timeline: ResolvedExportTimeline,
-  ): number[] {
-    const sourceMaxTime = sourceMaxTimestamp(timeline.videoDuration);
-
-    return frameContexts.map((context) => {
-      if (!context.clips.video) {
-        throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
-      }
-      return Math.min(context.clips.video.sourceTime, sourceMaxTime);
-    });
-  }
-}
-
-function sourceMaxTimestamp(duration: number): number {
-  return duration > 0 ? Math.max(0, duration - 0.001) : Number.POSITIVE_INFINITY;
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

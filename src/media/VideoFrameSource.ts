@@ -57,25 +57,25 @@ export class MediaBunnyVideoFrameSource {
     }
   }
 
-  framesAtTimestamps(timestamps: Iterable<number>): AsyncGenerator<DecodedVideoFrame> {
-    return this.decodeFrames(timestamps);
+  async frameAtTime(timestamp: number, frameIndex: number): Promise<DecodedVideoFrame> {
+    const sample = await this.sink.getSample(this.clampTimestamp(timestamp));
+    if (!sample) {
+      throw new Error(`MediaBunny returned no video frame for export frame ${frameIndex}`);
+    }
+
+    return this.wrapSample(sample);
   }
 
   dispose(): void {
     this.input.dispose();
   }
 
-  private async *decodeFrames(timestamps: Iterable<number>): AsyncGenerator<DecodedVideoFrame> {
-    let index = 0;
-
-    for await (const sample of this.sink.samplesAtTimestamps(timestamps)) {
-      if (!sample) {
-        throw new Error(`MediaBunny returned no video frame for export frame ${index}`);
-      }
-
-      yield this.wrapSample(sample);
-      index++;
+  private clampTimestamp(timestamp: number): number {
+    if (this.duration <= 0) {
+      return Math.max(0, timestamp);
     }
+
+    return Math.max(0, Math.min(timestamp, this.duration - 0.001));
   }
 
   private wrapSample(sample: VideoSample): DecodedVideoFrame {

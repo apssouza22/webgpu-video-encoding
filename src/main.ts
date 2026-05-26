@@ -11,10 +11,7 @@ function setStatus(message: string): void {
 }
 
 async function verifySamples(): Promise<void> {
-  const urls = [
-    DEMO_COMPOSITION.video.url,
-    DEMO_COMPOSITION.image.url,
-  ];
+  const urls = DEMO_COMPOSITION.layers.map((clip) => clip.url);
 
   for (const url of urls) {
     const response = await fetch(url, { method: 'HEAD' });

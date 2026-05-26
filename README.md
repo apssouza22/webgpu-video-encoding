@@ -13,6 +13,25 @@ On page load (Chrome/Edge recommended):
 5. Muxes to **MP4** with **MediaBunny**
 6. Automatically downloads `composition-export.mp4`
 
+## Composition API
+
+Compositions are built from ordered clip layers. A frame context exposes the
+active clips at a timeline time, and active video clips can decode their next
+source frame from that context.
+
+```ts
+import { Composition, ImageClip, VideoClip } from './src/composition';
+
+const composition = new Composition(30, 1280, 720);
+
+composition
+  .addLayer(new VideoClip('/samples/video.mp4', 0, 0, 0, 0, 1, 1))
+  .addLayer(new ImageClip('/samples/overlay.png', 2, 3, 0.62, 0.08, 0.32, 0.32, 0.92));
+
+const frame = composition.getFrameContextAtTime(2.5);
+const sourceFrame = await frame.video?.nextSourceFrame();
+```
+
 ## Requirements
 
 - Browser with **WebGPU**, **WebCodecs** (`VideoEncoder`, `AudioEncoder`), and `VideoFrame(OffscreenCanvas)`
@@ -38,7 +57,7 @@ Open http://localhost:5180 — export runs automatically and triggers a download
 
 ```
 src/
-  composition.ts      # Demo timeline (video + image + audio)
+  composition.ts      # Public composition API and demo timeline
   export/
     GpuVideoExporter.ts   # Orchestrator
     VideoEncoderService.ts

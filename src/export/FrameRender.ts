@@ -6,10 +6,9 @@ import type { DecodedVideoFrame } from '../media/VideoFrameSource';
 
 export interface FrameRenderOptions {
   frameDurationUs: number;
-  sourceFrames: AsyncGenerator<DecodedVideoFrame>;
   compositor: GpuCompositor;
   canvasContext: GPUCanvasContext;
-  overlay: HTMLImageElement;
+  overlay: HTMLImageElement | null;
   exportCanvas: ExportCanvas;
   device: GPUDevice;
   videoEncoder: VideoEncoderService;
@@ -20,10 +19,9 @@ export interface FrameRenderOptions {
 
 export class FrameRender {
   private readonly frameDurationUs: number;
-  private readonly sourceFrames: AsyncGenerator<DecodedVideoFrame>;
   private readonly compositor: GpuCompositor;
   private readonly canvasContext: GPUCanvasContext;
-  private readonly overlay: HTMLImageElement;
+  private readonly overlay: HTMLImageElement | null;
   private readonly exportCanvas: ExportCanvas;
   private readonly device: GPUDevice;
   private readonly videoEncoder: VideoEncoderService;
@@ -33,7 +31,6 @@ export class FrameRender {
 
   constructor(options: FrameRenderOptions) {
     this.frameDurationUs = options.frameDurationUs;
-    this.sourceFrames = options.sourceFrames;
     this.compositor = options.compositor;
     this.canvasContext = options.canvasContext;
     this.overlay = options.overlay;
@@ -46,11 +43,11 @@ export class FrameRender {
   }
 
   async renderAndEncode(context: RenderFrameContext): Promise<void> {
-    if (!context.clips.video) {
+    if (!context.video) {
       throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
     }
 
-    const sourceFrame = await this.nextSourceFrame(context.frame);
+    const sourceFrame = await this.nextSourceFrame(context);
 
     try {
       await this.renderFrame(context, sourceFrame.frame);
@@ -61,16 +58,17 @@ export class FrameRender {
     }
   }
 
-  private async nextSourceFrame(frame: number): Promise<DecodedVideoFrame> {
-    const result = await this.sourceFrames.next();
-    if (result.done) {
-      throw new Error(`MediaBunny video source ended before export frame ${frame}`);
+  private async nextSourceFrame(context: RenderFrameContext): Promise<DecodedVideoFrame> {
+    const videoLayer = context.video;
+    if (!videoLayer) {
+      throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
     }
-    return result.value;
+
+    return videoLayer.nextSourceFrame();
   }
 
   private async renderFrame(context: RenderFrameContext, videoFrame: VideoFrame): Promise<void> {
-    const imageLayer = context.clips.image;
+    const imageLayer = context.image;
 
     await this.compositor.renderFrame(this.canvasContext, {
       time: context.time,
