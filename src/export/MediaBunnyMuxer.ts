@@ -31,10 +31,9 @@ export class MediaBunnyMuxer {
   private videoSource: EncodedVideoPacketSource;
   private audioSource: EncodedAudioPacketSource | null = null;
   private target = new BufferTarget();
-  private queue: QueuedEntry[] = [];
   private nextVideoSequenceNumber = 0;
   private nextAudioSequenceNumber = 0;
-  private started = false;
+  private writeChain: Promise<void>;
 
   constructor(options: MediaBunnyMuxerOptions) {
     const format = new Mp4OutputFormat({ fastStart: 'in-memory' });
@@ -45,36 +44,25 @@ export class MediaBunnyMuxer {
       this.audioSource = new EncodedAudioPacketSource('aac');
       this.output.addAudioTrack(this.audioSource);
     }
+    this.writeChain = this.output.start();
   }
 
   addVideoChunk(chunk: EncodedVideoChunk, meta?: EncodedVideoChunkMetadata): void {
     const packet = EncodedPacket.fromEncodedChunk(chunk).clone({
       sequenceNumber: this.nextVideoSequenceNumber++,
     });
-    this.queue.push({ kind: 'video', packet, meta });
+    this.enqueue({ kind: 'video', packet, meta });
   }
 
   addAudioChunk(chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata): void {
     const packet = EncodedPacket.fromEncodedChunk(chunk).clone({
       sequenceNumber: this.nextAudioSequenceNumber++,
     });
-    this.queue.push({ kind: 'audio', packet, meta });
+    this.enqueue({ kind: 'audio', packet, meta });
   }
 
   async finalize(): Promise<ArrayBuffer> {
-    if (!this.started) {
-      await this.output.start();
-      this.started = true;
-    }
-
-    for (const entry of this.queue) {
-      if (entry.kind === 'video') {
-        await this.videoSource.add(entry.packet, entry.meta);
-      } else if (this.audioSource) {
-        await this.audioSource.add(entry.packet, entry.meta);
-      }
-    }
-    this.queue.length = 0;
+    await this.writeChain;
 
     this.videoSource.close();
     this.audioSource?.close();
@@ -85,5 +73,15 @@ export class MediaBunnyMuxer {
       throw new Error('MediaBunny muxer produced no buffer');
     }
     return buffer;
+  }
+
+  private enqueue(entry: QueuedEntry): void {
+    this.writeChain = this.writeChain.then(async () => {
+      if (entry.kind === 'video') {
+        await this.videoSource.add(entry.packet, entry.meta);
+      } else if (this.audioSource) {
+        await this.audioSource.add(entry.packet, entry.meta);
+      }
+    });
   }
 }

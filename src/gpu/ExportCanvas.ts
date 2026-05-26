@@ -20,7 +20,7 @@ export class ExportCanvas {
     return ctx;
   }
 
-  getCanvas(): OffscreenCanvas {
+  private getCanvas(): OffscreenCanvas {
     if (!this.canvas) {
       throw new Error('Export canvas not initialized');
     }

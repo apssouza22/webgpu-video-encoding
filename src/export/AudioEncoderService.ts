@@ -3,6 +3,11 @@ export interface EncodedAudioResult {
   metadata: EncodedAudioChunkMetadata[];
 }
 
+export type EncodedAudioChunkCallback = (
+  chunk: EncodedAudioChunk,
+  metadata?: EncodedAudioChunkMetadata,
+) => void;
+
 export class AudioEncoderService {
   private chunks: EncodedAudioChunk[] = [];
   private metadata: EncodedAudioChunkMetadata[] = [];
@@ -30,7 +35,10 @@ export class AudioEncoderService {
     return support.supported === true;
   }
 
-  async encodeBuffer(audioBuffer: AudioBuffer): Promise<EncodedAudioResult> {
+  async encodeBuffer(
+    audioBuffer: AudioBuffer,
+    onChunk?: EncodedAudioChunkCallback,
+  ): Promise<EncodedAudioResult> {
     if (!(await AudioEncoderService.isSupported())) {
       throw new Error('AAC AudioEncoder is not supported in this browser');
     }
@@ -40,8 +48,12 @@ export class AudioEncoderService {
 
     this.encoder = new AudioEncoder({
       output: (chunk, meta) => {
-        this.chunks.push(chunk);
-        this.metadata.push(meta ?? {});
+        if (onChunk) {
+          onChunk(chunk, meta);
+        } else {
+          this.chunks.push(chunk);
+          this.metadata.push(meta ?? {});
+        }
       },
       error: (error) => {
         throw error;
@@ -55,13 +67,21 @@ export class AudioEncoderService {
       bitrate: this.bitrate,
     });
 
-    const interleaved = interleaveAudioBuffer(audioBuffer, this.channels);
     const chunkSamples = 1024;
+    const channelData = Array.from({ length: this.channels }, (_, channel) =>
+      audioBuffer.getChannelData(Math.min(channel, audioBuffer.numberOfChannels - 1)),
+    );
     let timestamp = 0;
 
-    for (let offset = 0; offset < interleaved.length; offset += chunkSamples * this.channels) {
-      const frameSamples = Math.min(chunkSamples, (interleaved.length - offset) / this.channels);
-      const frameData = interleaved.subarray(offset, offset + frameSamples * this.channels);
+    for (let offset = 0; offset < audioBuffer.length; offset += chunkSamples) {
+      const frameSamples = Math.min(chunkSamples, audioBuffer.length - offset);
+      const frameData = new Float32Array(frameSamples * this.channels);
+      for (let channel = 0; channel < this.channels; channel++) {
+        const samples = channelData[channel];
+        for (let i = 0; i < frameSamples; i++) {
+          frameData[i * this.channels + channel] = samples[offset + i] ?? 0;
+        }
+      }
 
       const audioData = new AudioData({
         format: 'f32',
@@ -69,7 +89,7 @@ export class AudioEncoderService {
         numberOfFrames: frameSamples,
         numberOfChannels: this.channels,
         timestamp,
-        data: new Float32Array(frameData),
+        data: frameData,
       });
 
       this.encoder.encode(audioData);
@@ -83,16 +103,4 @@ export class AudioEncoderService {
 
     return { chunks: this.chunks, metadata: this.metadata };
   }
-}
-
-function interleaveAudioBuffer(buffer: AudioBuffer, channels: number): Float32Array {
-  const length = buffer.length;
-  const interleaved = new Float32Array(length * channels);
-  for (let channel = 0; channel < channels; channel++) {
-    const channelData = buffer.getChannelData(Math.min(channel, buffer.numberOfChannels - 1));
-    for (let i = 0; i < length; i++) {
-      interleaved[i * channels + channel] = channelData[i] ?? 0;
-    }
-  }
-  return interleaved;
 }

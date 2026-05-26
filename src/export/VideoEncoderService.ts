@@ -15,6 +15,7 @@ export class VideoEncoderService {
   private settings: VideoEncoderSettings;
   private frameCount = 0;
   private activeCodec = '';
+  private readonly maxEncodeQueueSize = 8;
 
   constructor(settings: VideoEncoderSettings) {
     this.settings = settings;
@@ -63,6 +64,11 @@ export class VideoEncoderService {
     this.encoder.encode(frame, { keyFrame });
     this.frameCount++;
 
+    if (this.encoder.encodeQueueSize >= this.maxEncodeQueueSize) {
+      await this.waitForEncoderDrain(this.encoder);
+      return;
+    }
+
     if (frameIndex % 30 === 0) {
       await new Promise<void>((resolve) => queueMicrotask(resolve));
     }
@@ -83,5 +89,19 @@ export class VideoEncoderService {
 
     const buffer = await this.muxer.finalize();
     return new Blob([buffer], { type: 'video/mp4' });
+  }
+
+  private async waitForEncoderDrain(encoder: VideoEncoder): Promise<void> {
+    await new Promise<void>((resolve) => {
+      const timeoutId = window.setTimeout(resolveOnce, 50);
+
+      function resolveOnce() {
+        window.clearTimeout(timeoutId);
+        encoder.removeEventListener('dequeue', resolveOnce);
+        resolve();
+      }
+
+      encoder.addEventListener('dequeue', resolveOnce, { once: true });
+    });
   }
 }
