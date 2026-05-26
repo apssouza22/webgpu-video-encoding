@@ -37,13 +37,13 @@ struct LayerUniforms {
 };
 
 @group(0) @binding(0) var texSampler: sampler;
-@group(0) @binding(1) var baseTexture: texture_2d<f32>;
+@group(0) @binding(1) var baseTexture: texture_external;
 @group(0) @binding(2) var overlayTexture: texture_2d<f32>;
 @group(0) @binding(3) var<uniform> layer: LayerUniforms;
 
 @fragment
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
-  var color = textureSample(baseTexture, texSampler, input.uv);
+  var color = textureSampleBaseClampToEdge(baseTexture, texSampler, input.uv);
 
   // textureSample must run in uniform control flow — always sample, mask in math.
   let rectSize = vec2f(layer.rectMaxX - layer.rectMinX, layer.rectMaxY - layer.rectMinY);

@@ -1,15 +1,18 @@
 import type { Composition, ExportProgress } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
+import { FrameRender } from './FrameRender';
 import { VideoEncoderService } from './VideoEncoderService';
 import { AudioEncoderService } from './AudioEncoderService';
 import { ResolvedExportTimeline, resolveExportTimeline } from './resolveExportTimeline';
-import { loadVideo, loadImage, seekVideo } from '../media/MediaLoader';
+import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
+import { MediaBunnyVideoFrameSource } from '../media/VideoFrameSource';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
 export class GpuVideoExporter {
+
   async export(composition: Composition, onProgress: ProgressCallback): Promise<Blob> {
     if (!navigator.gpu) {
       throw new Error('WebGPU is not available');
@@ -23,10 +26,10 @@ export class GpuVideoExporter {
     const device = await adapter.requestDevice();
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 
-    const video = await loadVideo(composition.video.url);
+    const videoSource = await MediaBunnyVideoFrameSource.open(composition.video.url);
     const overlay = await loadImage(composition.image.url);
 
-    const sourceDuration = Number.isFinite(video.duration) ? video.duration : 0;
+    const sourceDuration = Number.isFinite(videoSource.duration) ? videoSource.duration : 0;
     const timeline = resolveExportTimeline(composition, sourceDuration);
     const exportDuration = timeline.duration;
 
@@ -44,28 +47,30 @@ export class GpuVideoExporter {
     const compositor = await GpuCompositor.create(
       device,
       canvasFormat,
-      video.videoWidth || composition.width,
-      video.videoHeight || composition.height,
     );
 
     try {
-      for (let frame = 0; frame < totalFrames; frame++) {
-        await this.renderAndEncodeFrame(
-          frame,
-          composition,
-          frameDurationUs,
-          video,
-          sourceDuration,
-          compositor,
-          canvasContext,
-          overlay,
-          exportCanvas,
-          device,
-          videoEncoder,
+      const frameRender = new FrameRender({
+        composition,
+        frameDurationUs,
+        sourceFrames: videoSource.framesAtExportTimes(
+          composition.video.start,
+          composition.fps,
           totalFrames,
-          includeAudio,
-          onProgress,
-        );
+        ),
+        compositor,
+        canvasContext,
+        overlay,
+        exportCanvas,
+        device,
+        videoEncoder,
+        totalFrames,
+        includeAudio,
+        onProgress,
+      });
+
+      for (let frame = 0; frame < totalFrames; frame++) {
+        await frameRender.renderAndEncode(frame);
       }
 
       onProgress({
@@ -90,60 +95,8 @@ export class GpuVideoExporter {
     } finally {
       compositor.destroy();
       exportCanvas.destroy();
+      videoSource.dispose();
     }
-  }
-
-  private async renderAndEncodeFrame(
-    frame: number,
-    composition: Composition,
-    frameDurationUs: number,
-    video: HTMLVideoElement,
-    sourceDuration: number,
-    compositor: GpuCompositor,
-    canvasContext: GPUCanvasContext,
-    overlay: HTMLImageElement,
-    exportCanvas: ExportCanvas,
-    device: GPUDevice,
-    videoEncoder: VideoEncoderService,
-    totalFrames: number,
-    includeAudio: boolean,
-    onProgress: (progress: ExportProgress) => void,
-  ) {
-    const time = frame / composition.fps;
-    const timestampUs = frame * frameDurationUs;
-    const sourceTime = composition.video.start + time;
-
-    await seekVideo(
-      video,
-      sourceDuration > 0
-        ? Math.min(sourceTime, Math.max(0, sourceDuration - 0.001))
-        : sourceTime,
-    );
-
-    await compositor.renderFrame(canvasContext, {
-      time,
-      video,
-      overlayImage: overlay,
-      imageClip: composition.image,
-    });
-
-    const videoFrame = await exportCanvas.captureVideoFrame(
-      device,
-      timestampUs,
-      frameDurationUs,
-    );
-
-    await videoEncoder.encodeVideoFrame(videoFrame, frame);
-    videoFrame.close();
-
-    const percent = ((frame + 1) / totalFrames) * (includeAudio ? 95 : 100);
-    onProgress({
-      phase: 'video',
-      frame: frame + 1,
-      totalFrames,
-      percent,
-      message: `GPU frame ${frame + 1}/${totalFrames}`,
-    });
   }
 
   private async createVideoEncoder(
