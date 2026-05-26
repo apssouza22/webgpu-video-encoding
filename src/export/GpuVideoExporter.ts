@@ -1,4 +1,4 @@
-import type { Composition, ExportProgress } from '../types';
+import type { Composition, ExportProgress, RenderFrameContext } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { FrameRender } from './FrameRender';
@@ -8,6 +8,7 @@ import { ResolvedExportTimeline, resolveExportTimeline } from './resolveExportTi
 import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
 import { MediaBunnyVideoFrameSource } from '../media/VideoFrameSource';
+import { buildRenderFrameContext } from '../composition';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
@@ -50,14 +51,16 @@ export class GpuVideoExporter {
     );
 
     try {
-      const frameRender = new FrameRender({
+      const frameContexts = this.buildRenderFrameContexts(
         composition,
+        timeline,
+        totalFrames,
         frameDurationUs,
-        sourceFrames: videoSource.framesAtExportTimes(
-          composition.video.start,
-          composition.fps,
-          totalFrames,
-        ),
+      );
+      let videoSourceTimes = this.getVideoSourceTimes(frameContexts, timeline);
+      const frameRender = new FrameRender({
+        frameDurationUs,
+        sourceFrames: videoSource.framesAtTimestamps(videoSourceTimes),
         compositor,
         canvasContext,
         overlay,
@@ -69,8 +72,8 @@ export class GpuVideoExporter {
         onProgress,
       });
 
-      for (let frame = 0; frame < totalFrames; frame++) {
-        await frameRender.renderAndEncode(frame);
+      for (const renderFrame of frameContexts) {
+        await frameRender.renderAndEncode(renderFrame);
       }
 
       onProgress({
@@ -149,6 +152,38 @@ export class GpuVideoExporter {
 
     return { includeAudio, videoEncoder };
   }
+
+  private buildRenderFrameContexts(
+    composition: Composition,
+    timeline: ResolvedExportTimeline,
+    totalFrames: number,
+    frameDurationUs: number,
+  ): RenderFrameContext[] {
+    return Array.from({ length: totalFrames }, (_, frame) =>
+      buildRenderFrameContext(composition, frame, frameDurationUs, {
+        video: timeline.videoDuration,
+        image: timeline.imageDuration,
+      }),
+    );
+  }
+
+  private getVideoSourceTimes(
+    frameContexts: RenderFrameContext[],
+    timeline: ResolvedExportTimeline,
+  ): number[] {
+    const sourceMaxTime = sourceMaxTimestamp(timeline.videoDuration);
+
+    return frameContexts.map((context) => {
+      if (!context.clips.video) {
+        throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
+      }
+      return Math.min(context.clips.video.sourceTime, sourceMaxTime);
+    });
+  }
+}
+
+function sourceMaxTimestamp(duration: number): number {
+  return duration > 0 ? Math.max(0, duration - 0.001) : Number.POSITIVE_INFINITY;
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

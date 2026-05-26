@@ -3,6 +3,10 @@ import type { Composition } from '../types';
 export interface ResolvedExportTimeline {
   /** Timeline length in seconds */
   duration: number;
+  /** Seconds of video active on the timeline */
+  videoDuration: number;
+  /** Seconds of image overlay active on the timeline */
+  imageDuration: number;
   /** Seconds of audio to decode from the audio clip */
   audioDuration: number;
 }
@@ -52,6 +56,8 @@ export function resolveExportTimeline(
 
   return {
     duration,
+    videoDuration: videoClipDuration,
+    imageDuration: composition.image.duration,
     audioDuration: audioClipDuration,
   };
 }

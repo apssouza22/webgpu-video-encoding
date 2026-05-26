@@ -1,11 +1,10 @@
-import type { Composition, ExportProgress } from '../types';
+import type { ExportProgress, RenderFrameContext } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { VideoEncoderService } from './VideoEncoderService';
 import type { DecodedVideoFrame } from '../media/VideoFrameSource';
 
 export interface FrameRenderOptions {
-  composition: Composition;
   frameDurationUs: number;
   sourceFrames: AsyncGenerator<DecodedVideoFrame>;
   compositor: GpuCompositor;
@@ -19,14 +18,7 @@ export interface FrameRenderOptions {
   onProgress: (progress: ExportProgress) => void;
 }
 
-interface FrameTiming {
-  frame: number;
-  time: number;
-  timestampUs: number;
-}
-
 export class FrameRender {
-  private readonly composition: Composition;
   private readonly frameDurationUs: number;
   private readonly sourceFrames: AsyncGenerator<DecodedVideoFrame>;
   private readonly compositor: GpuCompositor;
@@ -40,7 +32,6 @@ export class FrameRender {
   private readonly onProgress: (progress: ExportProgress) => void;
 
   constructor(options: FrameRenderOptions) {
-    this.composition = options.composition;
     this.frameDurationUs = options.frameDurationUs;
     this.sourceFrames = options.sourceFrames;
     this.compositor = options.compositor;
@@ -54,27 +45,20 @@ export class FrameRender {
     this.onProgress = options.onProgress;
   }
 
-  async renderAndEncode(frame: number): Promise<void> {
-    const timing = this.getFrameTiming(frame);
-    const sourceFrame = await this.nextSourceFrame(frame);
+  async renderAndEncode(context: RenderFrameContext): Promise<void> {
+    if (!context.clips.video) {
+      throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
+    }
+
+    const sourceFrame = await this.nextSourceFrame(context.frame);
 
     try {
-      await this.renderFrame(timing.time, sourceFrame.frame);
-      await this.encodeFrame(timing);
-      this.reportProgress(frame);
+      await this.renderFrame(context, sourceFrame.frame);
+      await this.encodeFrame(context);
+      this.reportProgress(context.frame);
     } finally {
       sourceFrame.close();
     }
-  }
-
-  private getFrameTiming(frame: number): FrameTiming {
-    const time = frame / this.composition.fps;
-
-    return {
-      frame,
-      time,
-      timestampUs: frame * this.frameDurationUs,
-    };
   }
 
   private async nextSourceFrame(frame: number): Promise<DecodedVideoFrame> {
@@ -85,24 +69,26 @@ export class FrameRender {
     return result.value;
   }
 
-  private async renderFrame(time: number, videoFrame: VideoFrame): Promise<void> {
+  private async renderFrame(context: RenderFrameContext, videoFrame: VideoFrame): Promise<void> {
+    const imageLayer = context.clips.image;
+
     await this.compositor.renderFrame(this.canvasContext, {
-      time,
+      time: context.time,
       videoFrame,
-      overlayImage: this.overlay,
-      imageClip: this.composition.image,
+      overlayImage: imageLayer ? this.overlay : null,
+      imageClip: imageLayer?.clip ?? null,
     });
   }
 
-  private async encodeFrame(timing: FrameTiming): Promise<void> {
+  private async encodeFrame(context: RenderFrameContext): Promise<void> {
     const videoFrame = await this.exportCanvas.captureVideoFrame(
       this.device,
-      timing.timestampUs,
+      context.timestampUs,
       this.frameDurationUs,
     );
 
     try {
-      await this.videoEncoder.encodeVideoFrame(videoFrame, timing.frame);
+      await this.videoEncoder.encodeVideoFrame(videoFrame, context.frame);
     } finally {
       videoFrame.close();
     }

@@ -57,24 +57,12 @@ export class MediaBunnyVideoFrameSource {
     }
   }
 
-  framesAtExportTimes(startTime: number, fps: number, frameCount: number): AsyncGenerator<DecodedVideoFrame> {
-    const timestamps = this.exportTimestamps(startTime, fps, frameCount);
+  framesAtTimestamps(timestamps: Iterable<number>): AsyncGenerator<DecodedVideoFrame> {
     return this.decodeFrames(timestamps);
   }
 
   dispose(): void {
     this.input.dispose();
-  }
-
-  private *exportTimestamps(startTime: number, fps: number, frameCount: number): Generator<number> {
-    const frameDuration = 1 / fps;
-    const maxTimestamp = this.duration > 0
-      ? Math.max(0, this.duration - 0.001)
-      : Number.POSITIVE_INFINITY;
-
-    for (let frame = 0; frame < frameCount; frame++) {
-      yield Math.min(startTime + frame * frameDuration, maxTimestamp);
-    }
   }
 
   private async *decodeFrames(timestamps: Iterable<number>): AsyncGenerator<DecodedVideoFrame> {

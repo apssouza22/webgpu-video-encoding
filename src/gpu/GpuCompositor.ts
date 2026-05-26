@@ -10,7 +10,7 @@ export interface CompositorFrameInput {
   time: number;
   videoFrame: VideoFrame;
   overlayImage: HTMLImageElement | null;
-  imageClip: ImageClip;
+  imageClip: ImageClip | null;
 }
 
 export class GpuCompositor {
@@ -136,10 +136,7 @@ export class GpuCompositor {
     input: CompositorFrameInput,
   ): Promise<void> {
     const { time, videoFrame, overlayImage, imageClip } = input;
-    const showOverlay =
-      overlayImage !== null &&
-      time >= imageClip.start &&
-      time < imageClip.start + imageClip.duration;
+    const showOverlay = overlayImage !== null && imageClip !== null;
 
     if (showOverlay && overlayImage) {
       this.ensureOverlayTexture(overlayImage);
@@ -161,11 +158,11 @@ export class GpuCompositor {
     });
 
     const uniformData = new Float32Array([
-      showOverlay ? imageClip.opacity : 0,
-      imageClip.x,
-      imageClip.y,
-      imageClip.x + imageClip.width,
-      imageClip.y + imageClip.height,
+      showOverlay ? (imageClip?.opacity ?? 0) : 0,
+      imageClip?.x ?? 0,
+      imageClip?.y ?? 0,
+      (imageClip?.x ?? 0) + (imageClip?.width ?? 0),
+      (imageClip?.y ?? 0) + (imageClip?.height ?? 0),
       showOverlay ? 1 : 0,
     ]);
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);

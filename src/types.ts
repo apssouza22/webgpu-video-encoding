@@ -37,6 +37,34 @@ export interface Composition {
   audio: AudioClip;
 }
 
+export interface VideoLayerClip {
+  type: 'video';
+  clip: VideoClip;
+  localTime: number;
+  sourceTime: number;
+}
+
+export interface ImageLayerClip {
+  type: 'image';
+  clip: ImageClip;
+  localTime: number;
+}
+
+export type LayerClip = VideoLayerClip | ImageLayerClip;
+
+export interface CompositionClipsAtTime {
+  layers: LayerClip[];
+  video: VideoLayerClip | null;
+  image: ImageLayerClip | null;
+}
+
+export interface RenderFrameContext {
+  frame: number;
+  time: number;
+  timestampUs: number;
+  clips: CompositionClipsAtTime;
+}
+
 export interface ExportProgress {
   phase: 'audio' | 'video' | 'mux';
   frame: number;
