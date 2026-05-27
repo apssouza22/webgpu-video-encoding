@@ -4,7 +4,6 @@ import { GpuCompositor } from '../gpu/GpuCompositor';
 import { FrameRender } from './FrameRender';
 import { VideoEncoderService } from './VideoEncoderService';
 import { AudioEncoderService } from './AudioEncoderService';
-import { ResolvedExportTimeline, resolveExportTimeline } from './resolveExportTimeline';
 import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
 import { buildRenderFrameContext } from '../composition';
@@ -38,8 +37,7 @@ export class GpuVideoExporter {
       await composition.openLayerSources();
       const overlayImages = await this.loadOverlayImages(composition.imageLayers);
 
-      const timeline = resolveExportTimeline(composition);
-      const exportDuration = timeline.duration;
+      const exportDuration = composition.duration;
 
       const totalFrames = Math.ceil(exportDuration * composition.fps);
       const frameDurationUs = Math.round(1_000_000 / composition.fps);
@@ -47,7 +45,6 @@ export class GpuVideoExporter {
         onProgress,
         totalFrames,
         composition,
-        timeline,
       );
 
       const canvasContext = exportCanvas.init(device, composition.width, composition.height);
@@ -58,7 +55,6 @@ export class GpuVideoExporter {
 
       const frameContexts = this.buildRenderFrameContexts(
         composition,
-        timeline,
         totalFrames,
         frameDurationUs,
       );
@@ -111,7 +107,6 @@ export class GpuVideoExporter {
     onProgress: (progress: ExportProgress) => void,
     totalFrames: number,
     composition: Composition,
-    timeline: ResolvedExportTimeline,
   ) {
     const audioSupported = await AudioEncoderService.isSupported();
     let includeAudio = false;
@@ -128,7 +123,7 @@ export class GpuVideoExporter {
 
       const videoClip = composition.video;
       audioBuffer = videoClip
-        ? await extractAudioFromUrl(videoClip.url, 0, timeline.audioDuration)
+        ? await extractAudioFromUrl(videoClip.url, 0, videoClip.duration)
         : null;
 
       if (audioBuffer) {
@@ -170,12 +165,11 @@ export class GpuVideoExporter {
 
   private buildRenderFrameContexts(
     composition: Composition,
-    timeline: ResolvedExportTimeline,
     totalFrames: number,
     frameDurationUs: number,
   ): RenderFrameContext[] {
     return Array.from({ length: totalFrames }, (_, frame) =>
-      buildRenderFrameContext(composition, frame, frameDurationUs, timeline.clipDurations),
+      buildRenderFrameContext(composition, frame, frameDurationUs),
     );
   }
 

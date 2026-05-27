@@ -5,8 +5,6 @@ import {
 
 export type ClipType = 'video' | 'image';
 
-export type ClipDurationOverrides = ReadonlyMap<Clip, number>;
-
 export interface CompositionOptions {
   /** Timeline length in seconds; <= 0 derives from clips and source media. */
   duration?: number;
@@ -20,7 +18,7 @@ export abstract class Clip {
     readonly url: string,
     readonly start: number,
     /** Seconds on the timeline; <= 0 lets media-backed clips use their full source. */
-    readonly duration: number,
+    public duration: number,
     /** Normalized top-left (0-1). */
     readonly x: number,
     readonly y: number,
@@ -52,7 +50,7 @@ export class VideoClip extends Clip {
   constructor(
     url: string,
     start: number,
-    duration: number,
+    duration = 0,
     x = 0,
     y = 0,
     width = 1,
@@ -64,6 +62,7 @@ export class VideoClip extends Clip {
   async openSource(): Promise<MediaBunnyVideoFrameSource> {
     if (!this.source) {
       this.source = await MediaBunnyVideoFrameSource.open(this.url);
+      this.duration = this.resolveDurationFromSource();
     }
 
     return this.source;
@@ -74,11 +73,7 @@ export class VideoClip extends Clip {
   }
 
   effectiveDuration(): number {
-    if (this.duration > 0) {
-      return this.duration;
-    }
-
-    return this.sourceDuration;
+    return this.resolveDurationFromSource();
   }
 
   async nextSourceFrame(sourceTime: number, frameIndex: number): Promise<DecodedVideoFrame> {
@@ -95,6 +90,18 @@ export class VideoClip extends Clip {
     this.source?.dispose();
     this.source = null;
   }
+
+  private resolveDurationFromSource(): number {
+    if (this.sourceDuration <= 0) {
+      return Math.max(0, this.duration);
+    }
+
+    if (this.duration <= 0) {
+      return this.sourceDuration;
+    }
+
+    return Math.min(this.duration, this.sourceDuration);
+  }
 }
 
 export class ImageClip extends Clip {
@@ -103,11 +110,11 @@ export class ImageClip extends Clip {
   constructor(
     url: string,
     start: number,
-    duration: number,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
+    duration = 0,
+    x = 0,
+    y = 0,
+    width = 1,
+    height = 1,
     readonly opacity = 1,
   ) {
     super(url, start, duration, x, y, width, height);
@@ -118,8 +125,8 @@ export type LayerClipDefinition = VideoClip | ImageClip;
 
 export class Composition {
   private readonly layerList: LayerClipDefinition[] = [];
+  private readonly requestedDuration: number;
 
-  readonly duration: number;
   readonly outputFilename: string;
 
   constructor(
@@ -128,7 +135,7 @@ export class Composition {
     readonly height: number,
     options: CompositionOptions = {},
   ) {
-    this.duration = options.duration ?? 0;
+    this.requestedDuration = options.duration ?? 0;
     this.outputFilename = options.outputFilename ?? 'composition-export.mp4';
   }
 
@@ -139,6 +146,15 @@ export class Composition {
 
   get layers(): readonly LayerClipDefinition[] {
     return this.layerList;
+  }
+
+  get duration(): number {
+    const clipEnds = this.layerList.map((clip) => clip.timelineEnd());
+    const derivedDuration = Math.max(...clipEnds, 0);
+
+    return this.requestedDuration > 0
+      ? Math.max(this.requestedDuration, derivedDuration)
+      : derivedDuration;
   }
 
   get videoLayers(): VideoClip[] {
@@ -171,10 +187,9 @@ export class Composition {
     time: number,
     frame = Math.floor(time * this.fps),
     frameDurationUs = Math.round(1_000_000 / this.fps),
-    durations: ClipDurationOverrides = new Map(),
   ): RenderFrameContext {
     const layers = this.layerList
-      .map((clip) => this.createLayerContext(clip, time, frame, durations.get(clip)))
+      .map((clip) => this.createLayerContext(clip, time, frame))
       .filter((clip): clip is LayerClip => clip !== null);
 
     const videos = layers.filter((clip): clip is VideoLayerClip => clip.type === 'video');
@@ -194,9 +209,8 @@ export class Composition {
     clip: LayerClipDefinition,
     time: number,
     frame: number,
-    duration: number | undefined,
   ): LayerClip | null {
-    if (!clip.containsTime(time, duration)) {
+    if (!clip.containsTime(time)) {
       return null;
     }
 
