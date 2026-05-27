@@ -47,6 +47,7 @@ export abstract class Clip {
 export class VideoClip extends Clip {
   readonly type = 'video';
   private source: MediaBunnyVideoFrameSource | null = null;
+  private frameStream: AsyncGenerator<DecodedVideoFrame> | null = null;
 
   constructor(
     url: string,
@@ -78,6 +79,15 @@ export class VideoClip extends Clip {
   }
 
   async nextSourceFrame(sourceTime: number, frameIndex: number): Promise<DecodedVideoFrame> {
+    if (this.frameStream) {
+      const result = await this.frameStream.next();
+      if (result.done) {
+        throw new Error(`MediaBunny video stream ended before export frame ${frameIndex}`);
+      }
+
+      return result.value;
+    }
+
     const source = await this.openVideoSource();
     return source.frameAtTime(sourceTime, frameIndex);
   }
@@ -87,9 +97,28 @@ export class VideoClip extends Clip {
     return source.framesAtTimestamps(timestamps);
   }
 
+  async bindFrameStream(videoFrames: Iterable<VideoFrameContext>): Promise<void> {
+    const timestamps: number[] = [];
+    for (const context of videoFrames) {
+      for (const videoLayer of context.videos) {
+        if (videoLayer.clip === this) {
+          timestamps.push(videoLayer.sourceTime);
+        }
+      }
+    }
+
+    if (timestamps.length === 0) {
+      this.frameStream = null;
+      return;
+    }
+
+    this.frameStream = await this.framesAtTimestamps(timestamps);
+  }
+
   disposeSource(): void {
     this.source?.dispose();
     this.source = null;
+    this.frameStream = null;
   }
 
   private resolveDurationFromSource(): number {

@@ -1,11 +1,10 @@
-import type {Composition, ExportProgress, VideoClip, VideoFrameContext, VideoLayerClip} from '../types';
+import type {Composition, ExportProgress, VideoClip, VideoFrameContext} from '../types';
 import {ExportCanvas} from '../gpu/ExportCanvas';
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import {FrameRender} from './FrameRender';
 import {VideoEncoderService} from './VideoEncoderService';
 import {AudioEncoderService} from './AudioEncoderService';
 import {extractAudioFromUrl} from '../media/AudioExtractor';
-import type {DecodedVideoFrame} from '../media/VideoFrameSource';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
@@ -141,47 +140,22 @@ export class GpuVideoExporter {
   }
 
   private async bindVideoFrameStreams(videoFrames: VideoFrameContext[]): Promise<void> {
-    const streamsByClip = await this.getVideoStreams(videoFrames);
+    const clips = this.getVideoClips(videoFrames);
+    await Promise.all(
+        Array.from(clips, (clip) => clip.bindFrameStream(videoFrames)),
+    );
+  }
+
+  private getVideoClips(videoFrames: VideoFrameContext[]) {
+    const clips = new Set<VideoClip>();
 
     for (const context of videoFrames) {
       for (const videoLayer of context.videos) {
-        this.bindStreamToVideoLayer(streamsByClip, videoLayer, context);
-      }
-    }
-  }
-
-  private bindStreamToVideoLayer(streamsByClip: Map<VideoClip, AsyncGenerator<DecodedVideoFrame>>, videoLayer: VideoLayerClip, context: VideoFrameContext) {
-    const stream = streamsByClip.get(videoLayer.clip);
-    if (!stream) {
-      return;
-    }
-
-    videoLayer.nextSourceFrame = async () => {
-      const result = await stream.next();
-      if (result.done) {
-        throw new Error(`MediaBunny video stream ended before export frame ${context.frame}`);
-      }
-
-      return result.value;
-    };
-  }
-
-  private async getVideoStreams(videoFrames: VideoFrameContext[]) {
-    const timestampsByClip = new Map<VideoClip, number[]>();
-
-    for (const context of videoFrames) {
-      for (const videoLayer of context.videos) {
-        const timestamps = timestampsByClip.get(videoLayer.clip) ?? [];
-        timestamps.push(videoLayer.sourceTime);
-        timestampsByClip.set(videoLayer.clip, timestamps);
+        clips.add(videoLayer.clip);
       }
     }
 
-    const streamsByClip = new Map<VideoClip, AsyncGenerator<DecodedVideoFrame>>();
-    for (const [clip, timestamps] of timestampsByClip) {
-      streamsByClip.set(clip, await clip.framesAtTimestamps(timestamps));
-    }
-    return streamsByClip;
+    return clips;
   }
 }
 
