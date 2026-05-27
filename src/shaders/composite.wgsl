@@ -34,6 +34,7 @@ struct LayerUniforms {
   rectMaxX: f32,
   rectMaxY: f32,
   hasOverlay: f32,
+  renderMode: f32,
 };
 
 @group(0) @binding(0) var texSampler: sampler;
@@ -43,7 +44,7 @@ struct LayerUniforms {
 
 @fragment
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
-  var color = textureSampleBaseClampToEdge(baseTexture, texSampler, input.uv);
+  let baseColor = textureSampleBaseClampToEdge(baseTexture, texSampler, input.uv);
 
   // textureSample must run in uniform control flow — always sample, mask in math.
   let rectSize = vec2f(layer.rectMaxX - layer.rectMinX, layer.rectMaxY - layer.rectMinY);
@@ -59,5 +60,6 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
   let inRect = inRectX * inRectY;
   let overlayWeight = layer.hasOverlay * inRect * overlay.a * layer.opacity;
 
-  return mix(color, overlay, overlayWeight);
+  let overlayColor = vec4f(overlay.rgb, overlayWeight);
+  return select(baseColor, overlayColor, layer.renderMode > 0.5);
 }

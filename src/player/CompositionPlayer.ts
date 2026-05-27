@@ -192,8 +192,13 @@ export class CompositionPlayer {
       videoLayer.sourceTime,
       frameContext.frame,
     );
-    const imageLayer = this.currentImageLayer(renderTime);
-    const overlayImage = imageLayer ? await imageLayer.loadImageElement() : null;
+    const imageLayers = this.currentImageLayers(renderTime);
+    const overlays = await Promise.all(
+      imageLayers.map(async (imageClip) => ({
+        image: await imageClip.loadImageElement(),
+        imageClip,
+      })),
+    );
 
     try {
       if (renderVersion !== this.renderVersion) {
@@ -203,16 +208,15 @@ export class CompositionPlayer {
       await this.compositor.renderFrame(this.playerCanvas.getContext(), {
         time: renderTime,
         videoFrame: sourceFrame.frame,
-        overlayImage,
-        imageClip: imageLayer,
+        overlays,
       });
     } finally {
       sourceFrame.close();
     }
   }
 
-  private currentImageLayer(time: number): ImageClip | null {
-    return this.imageLayers.find((clip) => clip.containsTime(time)) ?? null;
+  private currentImageLayers(time: number): ImageClip[] {
+    return this.imageLayers.filter((clip) => clip.containsTime(time));
   }
 
   private get duration(): number {

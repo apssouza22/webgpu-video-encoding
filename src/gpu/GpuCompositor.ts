@@ -9,8 +9,12 @@ const TEXTURE_USAGE =
 export interface CompositorFrameInput {
   time: number;
   videoFrame: VideoFrame;
-  overlayImage: HTMLImageElement | null;
-  imageClip: ImageClip | null;
+  overlays: CompositorOverlayInput[];
+}
+
+export interface CompositorOverlayInput {
+  image: HTMLImageElement;
+  imageClip: ImageClip;
 }
 
 export class GpuCompositor {
@@ -19,10 +23,8 @@ export class GpuCompositor {
   private sampler: GPUSampler;
   private uniformBuffer: GPUBuffer;
   private bindGroupLayout: GPUBindGroupLayout;
-  private overlayTexture: GPUTexture;
   private dummyOverlayTexture: GPUTexture;
-  private overlayTextureUploaded = false;
-  private uploadedOverlayImage: HTMLImageElement | null = null;
+  private overlayTextures = new Map<HTMLImageElement, GPUTexture>();
 
   private constructor(
     device: GPUDevice,
@@ -30,7 +32,6 @@ export class GpuCompositor {
     sampler: GPUSampler,
     uniformBuffer: GPUBuffer,
     bindGroupLayout: GPUBindGroupLayout,
-    overlayTexture: GPUTexture,
     dummyOverlayTexture: GPUTexture,
   ) {
     this.device = device;
@@ -38,7 +39,6 @@ export class GpuCompositor {
     this.sampler = sampler;
     this.uniformBuffer = uniformBuffer;
     this.bindGroupLayout = bindGroupLayout;
-    this.overlayTexture = overlayTexture;
     this.dummyOverlayTexture = dummyOverlayTexture;
   }
 
@@ -76,7 +76,23 @@ export class GpuCompositor {
       fragment: {
         module: shaderModule,
         entryPoint: 'fragmentMain',
-        targets: [{ format: canvasFormat }],
+        targets: [
+          {
+            format: canvasFormat,
+            blend: {
+              color: {
+                operation: 'add',
+                srcFactor: 'src-alpha',
+                dstFactor: 'one-minus-src-alpha',
+              },
+              alpha: {
+                operation: 'add',
+                srcFactor: 'one',
+                dstFactor: 'one-minus-src-alpha',
+              },
+            },
+          },
+        ],
       },
       primitive: { topology: 'triangle-list' },
     });
@@ -91,12 +107,6 @@ export class GpuCompositor {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-    const overlayTexture = device.createTexture({
-      size: { width: 1, height: 1 },
-      format: 'rgba8unorm',
-      usage: TEXTURE_USAGE,
-    });
-
     const dummyOverlayTexture = device.createTexture({
       size: { width: 1, height: 1 },
       format: 'rgba8unorm',
@@ -109,92 +119,111 @@ export class GpuCompositor {
       sampler,
       uniformBuffer,
       bindGroupLayout,
-      overlayTexture,
       dummyOverlayTexture,
     );
   }
 
-  private ensureOverlayTexture(image: HTMLImageElement): void {
+  private ensureOverlayTexture(image: HTMLImageElement): GPUTexture | null {
     const width = image.naturalWidth || image.width;
     const height = image.naturalHeight || image.height;
     if (width === 0 || height === 0) {
-      return;
+      return null;
     }
 
-    if (this.overlayTexture.width !== width || this.overlayTexture.height !== height) {
-      this.overlayTexture.destroy();
-      this.overlayTexture = this.device.createTexture({
-        size: { width, height },
-        format: 'rgba8unorm',
-        usage: TEXTURE_USAGE,
-      });
-      this.overlayTextureUploaded = false;
-      this.uploadedOverlayImage = null;
+    const existingTexture = this.overlayTextures.get(image);
+    if (
+      existingTexture &&
+      existingTexture.width === width &&
+      existingTexture.height === height
+    ) {
+      return existingTexture;
     }
+
+    existingTexture?.destroy();
+    const texture = this.device.createTexture({
+      size: { width, height },
+      format: 'rgba8unorm',
+      usage: TEXTURE_USAGE,
+    });
+
+    this.device.queue.copyExternalImageToTexture(
+      { source: image },
+      { texture },
+      { width, height },
+    );
+    this.overlayTextures.set(image, texture);
+
+    return texture;
   }
 
   async renderFrame(
     canvasContext: GPUCanvasContext,
     input: CompositorFrameInput,
   ): Promise<void> {
-    const { time, videoFrame, overlayImage, imageClip } = input;
-    const showOverlay = overlayImage !== null && imageClip !== null;
-
-    if (showOverlay && overlayImage) {
-      this.ensureOverlayTexture(overlayImage);
-    }
-
+    const { videoFrame, overlays } = input;
     const externalVideoTexture = this.device.importExternalTexture({ source: videoFrame });
+    const textureView = canvasContext.getCurrentTexture().createView();
 
+    const baseUniforms = new Float32Array([0,0, 0, 0, 0, 0, 0]);
+    this.renderPass(
+      textureView,
+      externalVideoTexture,
+      this.dummyOverlayTexture,
+      baseUniforms,
+      'clear',
+    );
+
+    for (const overlay of overlays) {
+      const overlayTexture = this.ensureOverlayTexture(overlay.image);
+      if (!overlayTexture) {
+        continue;
+      }
+
+      const { imageClip } = overlay;
+      const overlayUniforms = new Float32Array([
+        imageClip.opacity,
+        imageClip.x,
+        imageClip.y,
+        imageClip.x + imageClip.width,
+        imageClip.y + imageClip.height,
+        1,
+        1,
+      ]);
+      this.renderPass(
+        textureView,
+        externalVideoTexture,
+        overlayTexture,
+        overlayUniforms,
+        'load',
+      );
+    }
+  }
+
+  private renderPass(
+    textureView: GPUTextureView,
+    externalVideoTexture: GPUExternalTexture,
+    overlayTexture: GPUTexture,
+    uniformData: Float32Array,
+    loadOp: GPULoadOp,
+  ): void {
+    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
     const bindGroup = this.device.createBindGroup({
       layout: this.bindGroupLayout,
       entries: [
         { binding: 0, resource: this.sampler },
         { binding: 1, resource: externalVideoTexture },
-        {
-          binding: 2,
-          resource: (showOverlay ? this.overlayTexture : this.dummyOverlayTexture).createView(),
-        },
+        { binding: 2, resource: overlayTexture.createView() },
         { binding: 3, resource: { buffer: this.uniformBuffer } },
       ],
     });
 
-    const uniformData = new Float32Array([
-      showOverlay ? (imageClip?.opacity ?? 0) : 0,
-      imageClip?.x ?? 0,
-      imageClip?.y ?? 0,
-      (imageClip?.x ?? 0) + (imageClip?.width ?? 0),
-      (imageClip?.y ?? 0) + (imageClip?.height ?? 0),
-      showOverlay ? 1 : 0,
-    ]);
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
-
-    if (
-      showOverlay &&
-      overlayImage &&
-      (!this.overlayTextureUploaded || this.uploadedOverlayImage !== overlayImage)
-    ) {
-      const ow = overlayImage.naturalWidth || overlayImage.width;
-      const oh = overlayImage.naturalHeight || overlayImage.height;
-      if (ow > 0 && oh > 0) {
-        this.device.queue.copyExternalImageToTexture(
-          { source: overlayImage },
-          { texture: this.overlayTexture },
-          { width: ow, height: oh },
-        );
-        this.overlayTextureUploaded = true;
-        this.uploadedOverlayImage = overlayImage;
-      }
-    }
-
     const encoder = this.device.createCommandEncoder();
-    const textureView = canvasContext.getCurrentTexture().createView();
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
           view: textureView,
           clearValue: { r: 0, g: 0, b: 0, a: 1 },
-          loadOp: 'clear',
+          loadOp,
           storeOp: 'store',
         },
       ],
@@ -209,7 +238,10 @@ export class GpuCompositor {
   }
 
   destroy(): void {
-    this.overlayTexture.destroy();
+    for (const texture of this.overlayTextures.values()) {
+      texture.destroy();
+    }
+    this.overlayTextures.clear();
     this.dummyOverlayTexture.destroy();
   }
 }

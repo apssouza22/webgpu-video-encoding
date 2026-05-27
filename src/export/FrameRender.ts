@@ -55,14 +55,17 @@ export class FrameRender {
   }
 
   private async renderFrame(context: VideoFrameContext, videoFrame: VideoFrame): Promise<void> {
-    const imageLayer = context.images[0] ?? null;
-    const overlayImage = imageLayer ? await imageLayer.clip.loadImageElement() : null;
+    const overlays = await Promise.all(
+      context.images.map(async ({ clip }) => ({
+        image: await clip.loadImageElement(),
+        imageClip: clip,
+      })),
+    );
 
     await this.gpuCompositor.renderFrame(this.canvasContext, {
       time: context.time,
       videoFrame,
-      overlayImage,
-      imageClip: imageLayer?.clip ?? null,
+      overlays,
     });
   }
 

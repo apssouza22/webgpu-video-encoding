@@ -12,4 +12,5 @@ export const DEMO_COMPOSITION = new Composition(30, 1280, 720, {
 })
   .addLayer(new VideoClip('/samples/video.mp4', 0, 5))
   .addLayer(new VideoClip('/samples/video-2.mp4', 5))
-  .addLayer(new ImageClip('/samples/overlay.png', 2, 3, 0.62, 0.08, 0.32, 0.32, 0.92));
+  .addLayer(new ImageClip('/samples/overlay.png', 1, 3, 0.62, 0.08, 0.32, 0.32, 0.92))
+  .addLayer(new ImageClip('/samples/overlay-2.png', 1, 3, 0, 0.08, 0.32, 0.32, 0.92));
