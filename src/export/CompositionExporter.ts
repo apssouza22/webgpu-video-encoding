@@ -45,8 +45,6 @@ export class CompositionExporter {
           canvasFormat,
       );
 
-      const framesList = composition.getAllFrames()
-      await this.bindVideoFrameStreams(framesList);
 
       const frameRender = new FrameRender({
         frameDurationUs,
@@ -59,6 +57,9 @@ export class CompositionExporter {
         includeAudio,
         onProgress,
       });
+
+      const framesList = composition.getAllFrames()
+      await this.bindVideoFrameStreams(framesList);
 
       for (const frame of framesList) {
         await frameRender.renderAndEncode(frame);

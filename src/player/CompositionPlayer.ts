@@ -1,17 +1,12 @@
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import type {Composition, ImageClip} from '../types';
 
-interface ImageLayerElement {
-  clip: ImageClip;
-  element: HTMLImageElement;
-}
-
 export class CompositionPlayer {
   private readonly root: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly canvasContext: GPUCanvasContext;
   private readonly compositor: GpuCompositor;
-  private readonly imageLayers: ImageLayerElement[];
+  private readonly imageLayers: ImageClip[];
   private readonly playButton: HTMLButtonElement;
   private readonly scrubber: HTMLInputElement;
   private readonly timeLabel: HTMLSpanElement;
@@ -84,7 +79,7 @@ export class CompositionPlayer {
     this.timeLabel = document.createElement('span');
     this.timeLabel.className = 'composition-player__time';
 
-    this.imageLayers = composition.imageLayers.map((clip) => this.createImageLayer(clip));
+    this.imageLayers = composition.imageLayers;
 
     this.root.appendChild(this.canvas);
     this.root.appendChild(this.createControls());
@@ -101,16 +96,6 @@ export class CompositionPlayer {
   destroy(): void {
     this.pausePlayback();
     this.compositor.destroy();
-  }
-
-  private createImageLayer(clip: ImageClip): ImageLayerElement {
-    const element = document.createElement('img');
-    element.src = clip.url;
-    element.alt = 'Composition overlay';
-    element.className = 'composition-player__source-image';
-    element.addEventListener('load', () => void this.renderCurrentFrame());
-
-    return {clip, element};
   }
 
   private createControls(): HTMLElement {
@@ -221,6 +206,7 @@ export class CompositionPlayer {
       frameContext.frame,
     );
     const imageLayer = this.currentImageLayer(renderTime);
+    const overlayImage = imageLayer ? await imageLayer.loadImageElement() : null;
 
     try {
       if (renderVersion !== this.renderVersion) {
@@ -230,16 +216,16 @@ export class CompositionPlayer {
       await this.compositor.renderFrame(this.canvasContext, {
         time: renderTime,
         videoFrame: sourceFrame.frame,
-        overlayImage: imageLayer?.element.complete ? imageLayer.element : null,
-        imageClip: imageLayer?.clip ?? null,
+        overlayImage,
+        imageClip: imageLayer,
       });
     } finally {
       sourceFrame.close();
     }
   }
 
-  private currentImageLayer(time: number): ImageLayerElement | null {
-    return this.imageLayers.find(({clip}) => clip.containsTime(time)) ?? null;
+  private currentImageLayer(time: number): ImageClip | null {
+    return this.imageLayers.find((clip) => clip.containsTime(time)) ?? null;
   }
 
   private get duration(): number {
