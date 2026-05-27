@@ -1,6 +1,7 @@
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import {PlayerCanvas} from '../gpu/PlayerCanvas';
-import type {Composition, ImageClip} from '../types';
+import type {Composition} from '../composition';
+import type {ImageClip} from '../types';
 
 export class CompositionPlayer {
   private readonly root: HTMLElement;

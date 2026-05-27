@@ -206,6 +206,7 @@ export class GpuCompositor {
     uniformData: Float32Array,
     loadOp: GPULoadOp,
   ): void {
+    // @ts-ignore
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
     const bindGroup = this.device.createBindGroup({
       layout: this.bindGroupLayout,

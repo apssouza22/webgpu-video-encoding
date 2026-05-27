@@ -1,6 +1,6 @@
-import { DEMO_COMPOSITION } from './composition';
-import { CompositionExporter, downloadBlob } from './export/CompositionExporter';
-import { CompositionPlayer } from './player/CompositionPlayer';
+import {DEMO_COMPOSITION} from './composition';
+import {CompositionExporter, downloadBlob} from './export/CompositionExporter';
+import {CompositionPlayer} from './player/CompositionPlayer';
 
 const statusEl = document.getElementById('status');
 const playerEl = document.getElementById('player');

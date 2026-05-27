@@ -1,4 +1,5 @@
-import type {Composition, ExportProgress, VideoClip, VideoFrameContext} from '../types';
+import type {Composition} from '../composition';
+import type {ExportProgress, VideoClip, VideoFrameContext} from '../types';
 import {ExporterCanvas} from '../gpu/ExporterCanvas';
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import {FrameRender} from './FrameRender';
