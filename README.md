@@ -1,21 +1,45 @@
 # gpu-video-export
 
-Minimal browser demo of **GPU preview/playback + GPU export → OffscreenCanvas → WebCodecs → MediaBunny MP4**.
+An experimental browser project for exploring high-performance video processing with **WebGPU**.
+
+The goal is to understand how far a browser-native video pipeline can go when
+composition work stays on the GPU: decode media frames, combine multiple visual
+layers, preview the timeline, render export frames through an `OffscreenCanvas`,
+encode with WebCodecs, and mux the result into an MP4.
+
+This is not a full editor. It is a focused playground for testing the building
+blocks of a GPU-powered video compositor.
 
 ## What it does
 
 In a supported desktop browser (Chrome/Edge recommended), the app:
 
-1. Loads a timeline-style composition with ordered **video**, **image**, and **audio** layers
-2. Shows an interactive WebGPU preview player with play/pause controls, audio playback, and a scrubber
-3. Renders export frames on a **WebGPU OffscreenCanvas** (no `readPixels` CPU fallback)
-4. Captures each rendered frame as a **`VideoFrame`** from the canvas
-5. Encodes video with **`VideoEncoder`** (H.264 / WebCodecs)
-6. Encodes audio with **`AudioEncoder`** (AAC / WebCodecs) when supported
-7. Muxes everything to **MP4** with **MediaBunny**
-8. Downloads `composition-export.mp4` when export finishes
+1. Loads a timeline-style composition with ordered **video**, **image overlay**, and **audio** layers
+2. Composes video and image layers with a **WebGPU shader**
+3. Shows an interactive WebGPU preview player with play/pause controls, audio playback, and a scrubber
+4. Renders export frames on a **WebGPU OffscreenCanvas** (no `readPixels` CPU fallback)
+5. Captures each rendered frame as a **`VideoFrame`** from the canvas
+6. Encodes video with **`VideoEncoder`** (H.264 / WebCodecs)
+7. Encodes audio with **`AudioEncoder`** (AAC / WebCodecs) when supported
+8. Muxes everything to **MP4** with **MediaBunny**
+9. Downloads `composition-export.mp4` when export finishes
 
-The demo composition is 1280x720 at 30 fps. It plays `video.mp4` for the first 5 seconds, switches to `video-2.mp4`, schedules explicit audio layers from the same files for preview playback, and displays two transparent image overlays from 1s to 4s. Export currently encodes the first audio layer when browser AAC support is available.
+The demo composition is 1280x720 at 30 fps. It plays `video.mp4` for the first 5 seconds, switches to `video-2.mp4`,
+schedules explicit audio layers from the same files for preview playback, and displays two transparent image overlays
+from 1s to 4s. Export mixes the timeline audio layers when browser AAC support is available.
+
+## Why WebGPU?
+
+Video composition is naturally GPU-shaped work. Each frame can be treated as a
+set of textures: a base video frame plus overlays, transforms, opacity, and later
+effects. WebGPU gives the browser direct access to a modern graphics pipeline, so
+this project keeps rendering on the GPU for both preview and export instead of
+copying pixels back through the CPU.
+
+The current compositor is intentionally small: it composites one active video
+layer with any active image overlays. The structure is meant to grow toward more
+video layers, transitions, effects, and timeline behavior while keeping the same
+GPU-first export path.
 
 ## Composition API
 
@@ -55,7 +79,6 @@ const sourceFrame = await frame.videos[0]?.nextSourceFrame();
 ## Quick start
 
 ```bash
-cd gpu-video-export
 npm install
 # copy your files:
 #   public/samples/video.mp4
@@ -66,43 +89,6 @@ npm run dev
 ```
 
 Open http://localhost:5180. The app checks sample media, loads the preview player, then enables **Export composition**. Press the button to render and download the MP4.
-
-## Project layout
-
-```
-src/
-  composition.ts          # Public composition API and demo timeline
-  main.ts                 # Sample checks, preview boot, export button wiring
-  types.ts                # Clip types and frame/export contracts
-  export/
-    CompositionExporter.ts # Export orchestrator
-    FrameRender.ts        # Render one timeline frame and encode it
-    VideoEncoderService.ts
-    AudioEncoderService.ts
-    MediaBunnyMuxer.ts
-  gpu/
-    PlayerCanvas.ts       # On-page WebGPU preview canvas
-    ExporterCanvas.ts     # OffscreenCanvas + VideoFrame capture
-    GpuCompositor.ts      # WebGPU composite (video + image overlays)
-  media/
-    MediaLoader.ts        # Image loading helpers
-    VideoFrameSource.ts   # MediaBunny video decode helpers
-  player/
-    CompositionPlayer.ts  # Preview UI and playback loop
-    VideoPlayer.ts        # WebGPU video preview renderer
-    AudioPlayer.ts        # Audio preview scheduling
-  shaders/
-    composite.wgsl
-```
-
-## Differences from MasterSelects
-
-| MasterSelects | This project |
-|---------------|--------------|
-| Full timeline / effects | Fixed demo composition |
-| Fast WebCodecs decode + precise fallback | HTMLVideo seek per frame |
-| `readPixels` fallback | GPU-only capture |
-| Multiple containers/codecs | MP4 + H.264 + AAC only |
 
 ## License
 
