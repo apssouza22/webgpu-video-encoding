@@ -1,10 +1,10 @@
 import {GpuCompositor} from '../gpu/GpuCompositor';
+import {PlayerCanvas} from '../gpu/PlayerCanvas';
 import type {Composition, ImageClip} from '../types';
 
 export class CompositionPlayer {
   private readonly root: HTMLElement;
-  private readonly canvas: HTMLCanvasElement;
-  private readonly canvasContext: GPUCanvasContext;
+  private readonly playerCanvas: PlayerCanvas;
   private readonly compositor: GpuCompositor;
   private readonly imageLayers: ImageClip[];
   private readonly playButton: HTMLButtonElement;
@@ -31,39 +31,25 @@ export class CompositionPlayer {
     }
 
     const device = await adapter.requestDevice();
-    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-    const compositor = await GpuCompositor.create(device, canvasFormat);
+    const playerCanvas = new PlayerCanvas();
+    playerCanvas.init(device, composition.width, composition.height);
+    const compositor = await GpuCompositor.create(device, playerCanvas.getFormat());
 
-    return new CompositionPlayer(composition, container, device, canvasFormat, compositor);
+    return new CompositionPlayer(composition, container, playerCanvas, compositor);
   }
 
   private constructor(
     private readonly composition: Composition,
     container: HTMLElement,
-    device: GPUDevice,
-    canvasFormat: GPUTextureFormat,
+    playerCanvas: PlayerCanvas,
     compositor: GpuCompositor,
   ) {
+    this.playerCanvas = playerCanvas;
     this.compositor = compositor;
     this.root = document.createElement('div');
     this.root.className = 'composition-player';
-
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = composition.width;
-    this.canvas.height = composition.height;
-    this.canvas.className = 'composition-player__canvas';
-
-    const canvasContext = this.canvas.getContext('webgpu');
-    if (!canvasContext) {
-      throw new Error('WebGPU canvas context not available');
-    }
-
-    canvasContext.configure({
-      device,
-      format: canvasFormat,
-      alphaMode: 'premultiplied',
-    });
-    this.canvasContext = canvasContext;
+    const canvas = this.playerCanvas.getCanvas();
+    canvas.className = 'composition-player__canvas';
 
     this.playButton = document.createElement('button');
     this.playButton.type = 'button';
@@ -81,7 +67,7 @@ export class CompositionPlayer {
 
     this.imageLayers = composition.imageLayers;
 
-    this.root.appendChild(this.canvas);
+    this.root.appendChild(canvas);
     this.root.appendChild(this.createControls());
 
     container.replaceChildren(this.root);
@@ -96,6 +82,7 @@ export class CompositionPlayer {
   destroy(): void {
     this.pausePlayback();
     this.compositor.destroy();
+    this.playerCanvas.destroy();
   }
 
   private createControls(): HTMLElement {
@@ -213,7 +200,7 @@ export class CompositionPlayer {
         return;
       }
 
-      await this.compositor.renderFrame(this.canvasContext, {
+      await this.compositor.renderFrame(this.playerCanvas.getContext(), {
         time: renderTime,
         videoFrame: sourceFrame.frame,
         overlayImage,

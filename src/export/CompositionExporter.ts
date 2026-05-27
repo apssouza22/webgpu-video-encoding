@@ -1,5 +1,5 @@
 import type {Composition, ExportProgress, VideoClip, VideoFrameContext} from '../types';
-import {ExportCanvas} from '../gpu/ExportCanvas';
+import {ExporterCanvas} from '../gpu/ExporterCanvas';
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import {FrameRender} from './FrameRender';
 import {VideoEncoderService} from './VideoEncoderService';
@@ -21,9 +21,8 @@ export class CompositionExporter {
     }
 
     const device = await adapter.requestDevice();
-    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 
-    const exportCanvas = new ExportCanvas();
+    const exportCanvas = new ExporterCanvas();
     let compositor: GpuCompositor | null = null;
 
     try {
@@ -40,10 +39,7 @@ export class CompositionExporter {
       );
 
       const canvasContext = exportCanvas.init(device, composition.width, composition.height);
-      compositor = await GpuCompositor.create(
-          device,
-          canvasFormat,
-      );
+      compositor = await GpuCompositor.create(device, exportCanvas.getFormat());
 
 
       const frameRender = new FrameRender({

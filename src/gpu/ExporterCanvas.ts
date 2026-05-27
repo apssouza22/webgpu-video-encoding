@@ -1,6 +1,7 @@
-export class ExportCanvas {
+export class ExporterCanvas {
   private canvas: OffscreenCanvas | null = null;
   private context: GPUCanvasContext | null = null;
+  private format: GPUTextureFormat | null = null;
 
   init(device: GPUDevice, width: number, height: number): GPUCanvasContext {
     this.canvas = new OffscreenCanvas(width, height);
@@ -9,15 +10,22 @@ export class ExportCanvas {
       throw new Error('WebGPU OffscreenCanvas context not available');
     }
 
-    const format = navigator.gpu.getPreferredCanvasFormat();
+    this.format = navigator.gpu.getPreferredCanvasFormat();
     ctx.configure({
       device,
-      format,
+      format: this.format,
       alphaMode: 'premultiplied',
     });
 
     this.context = ctx;
     return ctx;
+  }
+
+  getFormat(): GPUTextureFormat {
+    if (!this.format) {
+      throw new Error('Export canvas format not initialized');
+    }
+    return this.format;
   }
 
   private getCanvas(): OffscreenCanvas {
@@ -50,5 +58,6 @@ export class ExportCanvas {
   destroy(): void {
     this.context = null;
     this.canvas = null;
+    this.format = null;
   }
 }

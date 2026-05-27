@@ -1,5 +1,5 @@
 import type { VideoFrameContext } from '../types';
-import { ExportCanvas } from '../gpu/ExportCanvas';
+import { ExporterCanvas } from '../gpu/ExporterCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { VideoEncoderService } from './VideoEncoderService';
 import type { DecodedVideoFrame } from '../media/VideoFrameSource';
@@ -8,7 +8,7 @@ export interface FrameRenderOptions {
   frameDurationUs: number;
   compositor: GpuCompositor;
   canvasContext: GPUCanvasContext;
-  exportCanvas: ExportCanvas;
+  exportCanvas: ExporterCanvas;
   device: GPUDevice;
   videoEncoder: VideoEncoderService;
 }
@@ -17,7 +17,7 @@ export class FrameRender {
   private readonly frameDurationUs: number;
   private readonly gpuCompositor: GpuCompositor;
   private readonly canvasContext: GPUCanvasContext;
-  private readonly exportCanvas: ExportCanvas;
+  private readonly exportCanvas: ExporterCanvas;
   private readonly device: GPUDevice;
   private readonly videoEncoder: VideoEncoderService;
 
