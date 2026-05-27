@@ -86,6 +86,11 @@ export class VideoClip extends Clip {
     return source.frameAtTime(sourceTime, frameIndex);
   }
 
+  async framesAtTimestamps(timestamps: Iterable<number>): Promise<AsyncGenerator<DecodedVideoFrame>> {
+    const source = await this.openSource();
+    return source.framesAtTimestamps(timestamps);
+  }
+
   disposeSource(): void {
     this.source?.dispose();
     this.source = null;
@@ -171,17 +176,17 @@ export class Composition {
     const layers = this.layerList
       .map((clip) => this.createLayerContext(clip, time, frame, durations.get(clip)))
       .filter((clip): clip is LayerClip => clip !== null);
-    const video = layers.find((clip): clip is VideoLayerClip => clip.type === 'video') ?? null;
-    const image = layers.find((clip): clip is ImageLayerClip => clip.type === 'image') ?? null;
+
+    const videos = layers.filter((clip): clip is VideoLayerClip => clip.type === 'video');
+    const images = layers.filter((clip): clip is ImageLayerClip => clip.type === 'image');
 
     return {
       frame,
       time,
       timestampUs: frame * frameDurationUs,
       layers,
-      video,
-      image,
-      clips: { layers, video, image },
+      videos,
+      images,
     };
   }
 
@@ -231,20 +236,13 @@ export interface ImageLayerClip {
 
 export type LayerClip = VideoLayerClip | ImageLayerClip;
 
-export interface CompositionClipsAtTime {
-  layers: LayerClip[];
-  video: VideoLayerClip | null;
-  image: ImageLayerClip | null;
-}
-
 export interface RenderFrameContext {
   frame: number;
   time: number;
   timestampUs: number;
   layers: LayerClip[];
-  video: VideoLayerClip | null;
-  image: ImageLayerClip | null;
-  clips: CompositionClipsAtTime;
+  videos: VideoLayerClip[];
+  images: ImageLayerClip[];
 }
 
 export interface ExportProgress {

@@ -1,4 +1,4 @@
-import type { Composition, ExportProgress, RenderFrameContext } from '../types';
+import type { Composition, ExportProgress, ImageClip, RenderFrameContext, VideoClip } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { FrameRender } from './FrameRender';
@@ -8,6 +8,7 @@ import { ResolvedExportTimeline, resolveExportTimeline } from './resolveExportTi
 import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
 import { buildRenderFrameContext } from '../composition';
+import type { DecodedVideoFrame } from '../media/VideoFrameSource';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
@@ -35,7 +36,7 @@ export class GpuVideoExporter {
 
     try {
       await composition.openLayerSources();
-      const overlay = composition.image ? await loadImage(composition.image.url) : null;
+      const overlayImages = await this.loadOverlayImages(composition.imageLayers);
 
       const timeline = resolveExportTimeline(composition);
       const exportDuration = timeline.duration;
@@ -61,11 +62,13 @@ export class GpuVideoExporter {
         totalFrames,
         frameDurationUs,
       );
+      await this.bindVideoFrameStreams(frameContexts);
+
       const frameRender = new FrameRender({
         frameDurationUs,
         compositor,
         canvasContext,
-        overlay,
+        overlayImages,
         exportCanvas,
         device,
         videoEncoder,
@@ -154,6 +157,17 @@ export class GpuVideoExporter {
     return { includeAudio, videoEncoder };
   }
 
+  private async loadOverlayImages(imageClips: ImageClip[]): Promise<Map<ImageClip, HTMLImageElement>> {
+    const overlayImages = new Map<ImageClip, HTMLImageElement>();
+    await Promise.all(
+      imageClips.map(async (clip) => {
+        overlayImages.set(clip, await loadImage(clip.url));
+      }),
+    );
+
+    return overlayImages;
+  }
+
   private buildRenderFrameContexts(
     composition: Composition,
     timeline: ResolvedExportTimeline,
@@ -163,6 +177,41 @@ export class GpuVideoExporter {
     return Array.from({ length: totalFrames }, (_, frame) =>
       buildRenderFrameContext(composition, frame, frameDurationUs, timeline.clipDurations),
     );
+  }
+
+  private async bindVideoFrameStreams(frameContexts: RenderFrameContext[]): Promise<void> {
+    const timestampsByClip = new Map<VideoClip, number[]>();
+
+    for (const context of frameContexts) {
+      for (const videoLayer of context.videos) {
+        const timestamps = timestampsByClip.get(videoLayer.clip) ?? [];
+        timestamps.push(videoLayer.sourceTime);
+        timestampsByClip.set(videoLayer.clip, timestamps);
+      }
+    }
+
+    const streamsByClip = new Map<VideoClip, AsyncGenerator<DecodedVideoFrame>>();
+    for (const [clip, timestamps] of timestampsByClip) {
+      streamsByClip.set(clip, await clip.framesAtTimestamps(timestamps));
+    }
+
+    for (const context of frameContexts) {
+      for (const videoLayer of context.videos) {
+        const stream = streamsByClip.get(videoLayer.clip);
+        if (!stream) {
+          continue;
+        }
+
+        videoLayer.nextSourceFrame = async () => {
+          const result = await stream.next();
+          if (result.done) {
+            throw new Error(`MediaBunny video stream ended before export frame ${context.frame}`);
+          }
+
+          return result.value;
+        };
+      }
+    }
   }
 }
 

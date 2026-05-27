@@ -22,6 +22,7 @@ export class GpuCompositor {
   private overlayTexture: GPUTexture;
   private dummyOverlayTexture: GPUTexture;
   private overlayTextureUploaded = false;
+  private uploadedOverlayImage: HTMLImageElement | null = null;
 
   private constructor(
     device: GPUDevice,
@@ -128,6 +129,7 @@ export class GpuCompositor {
         usage: TEXTURE_USAGE,
       });
       this.overlayTextureUploaded = false;
+      this.uploadedOverlayImage = null;
     }
   }
 
@@ -167,7 +169,11 @@ export class GpuCompositor {
     ]);
     this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
 
-    if (showOverlay && overlayImage && !this.overlayTextureUploaded) {
+    if (
+      showOverlay &&
+      overlayImage &&
+      (!this.overlayTextureUploaded || this.uploadedOverlayImage !== overlayImage)
+    ) {
       const ow = overlayImage.naturalWidth || overlayImage.width;
       const oh = overlayImage.naturalHeight || overlayImage.height;
       if (ow > 0 && oh > 0) {
@@ -177,6 +183,7 @@ export class GpuCompositor {
           { width: ow, height: oh },
         );
         this.overlayTextureUploaded = true;
+        this.uploadedOverlayImage = overlayImage;
       }
     }
 
