@@ -1,13 +1,17 @@
 import {GpuCompositor} from '../gpu/GpuCompositor';
 import {PlayerCanvas} from '../gpu/PlayerCanvas';
 import type {Composition} from '../composition';
-import type {ImageClip} from '../types';
+import type {AudioClip, ImageClip} from '../types';
 
 export class CompositionPlayer {
   private readonly root: HTMLElement;
   private readonly playerCanvas: PlayerCanvas;
   private readonly compositor: GpuCompositor;
   private readonly imageLayers: ImageClip[];
+  private readonly audioLayers: AudioClip[];
+  private readonly audioBuffers: Map<AudioClip, AudioBuffer>;
+  private readonly audioContext: AudioContext | null;
+  private readonly audioSources = new Map<AudioClip, AudioBufferSourceNode>();
   private readonly playButton: HTMLButtonElement;
   private readonly scrubber: HTMLInputElement;
   private readonly timeLabel: HTMLSpanElement;
@@ -35,8 +39,27 @@ export class CompositionPlayer {
     const playerCanvas = new PlayerCanvas();
     playerCanvas.init(device, composition.width, composition.height);
     const compositor = await GpuCompositor.create(device, playerCanvas.getFormat());
+    const audioBuffers = await this.loadAudioBuffers(composition);
 
-    return new CompositionPlayer(composition, container, playerCanvas, compositor);
+    return new CompositionPlayer(composition, container, playerCanvas, compositor, audioBuffers);
+  }
+
+  private static async loadAudioBuffers(composition: Composition): Promise<Map<AudioClip, AudioBuffer>> {
+    const audioBuffers = new Map<AudioClip, AudioBuffer>();
+    const decoded = await Promise.all(
+      composition.audioLayers.map(async (clip) => ({
+        clip,
+        buffer: await clip.getAudioBuffer(),
+      })),
+    );
+
+    for (const {clip, buffer} of decoded) {
+      if (buffer) {
+        audioBuffers.set(clip, buffer);
+      }
+    }
+
+    return audioBuffers;
   }
 
   private constructor(
@@ -44,9 +67,12 @@ export class CompositionPlayer {
     container: HTMLElement,
     playerCanvas: PlayerCanvas,
     compositor: GpuCompositor,
+    audioBuffers: Map<AudioClip, AudioBuffer>,
   ) {
     this.playerCanvas = playerCanvas;
     this.compositor = compositor;
+    this.audioBuffers = audioBuffers;
+    this.audioContext = audioBuffers.size > 0 ? new AudioContext() : null;
     this.root = document.createElement('div');
     this.root.className = 'composition-player';
     const canvas = this.playerCanvas.getCanvas();
@@ -67,6 +93,7 @@ export class CompositionPlayer {
     this.timeLabel.className = 'composition-player__time';
 
     this.imageLayers = composition.imageLayers;
+    this.audioLayers = composition.audioLayers;
 
     this.root.appendChild(canvas);
     this.root.appendChild(this.createControls());
@@ -82,6 +109,7 @@ export class CompositionPlayer {
 
   destroy(): void {
     this.pausePlayback();
+    void this.audioContext?.close();
     this.compositor.destroy();
     this.playerCanvas.destroy();
   }
@@ -94,7 +122,7 @@ export class CompositionPlayer {
       if (this.isPlaying) {
         this.pausePlayback();
       } else {
-        this.startPlayback();
+        void this.startPlayback();
       }
     });
 
@@ -103,6 +131,7 @@ export class CompositionPlayer {
       if (this.isPlaying) {
         this.playStartedAt = performance.now();
         this.playStartedTime = this.currentTime;
+        this.scheduleAudioPlayback();
       }
       this.updateControls();
       void this.renderCurrentFrame();
@@ -112,7 +141,7 @@ export class CompositionPlayer {
     return controls;
   }
 
-  private startPlayback(): void {
+  private async startPlayback(): Promise<void> {
     if (this.currentTime >= this.duration) {
       this.currentTime = 0;
     }
@@ -121,6 +150,16 @@ export class CompositionPlayer {
     this.playStartedAt = performance.now();
     this.playStartedTime = this.currentTime;
     this.playButton.textContent = 'Pause';
+
+    try {
+      await this.resumeAudioContext();
+    } catch (error) {
+      console.warn('Audio preview playback failed', error);
+      this.pausePlayback();
+      return;
+    }
+
+    this.scheduleAudioPlayback();
     this.schedulePlaybackFrame();
   }
 
@@ -131,6 +170,7 @@ export class CompositionPlayer {
 
     this.isPlaying = false;
     this.cancelPlaybackFrame();
+    this.stopAudioSources();
     this.playButton.textContent = 'Play';
     this.updateControls();
   }
@@ -218,6 +258,64 @@ export class CompositionPlayer {
 
   private currentImageLayers(time: number): ImageClip[] {
     return this.imageLayers.filter((clip) => clip.containsTime(time));
+  }
+
+  private async resumeAudioContext(): Promise<void> {
+    if (!this.audioContext || this.audioContext.state === 'running') {
+      return;
+    }
+
+    await this.audioContext.resume();
+  }
+
+  private scheduleAudioPlayback(): void {
+    if (!this.audioContext || !this.isPlaying) {
+      return;
+    }
+
+    this.stopAudioSources();
+    const contextStartTime = this.audioContext.currentTime;
+
+    for (const clip of this.audioLayers) {
+      const buffer = this.audioBuffers.get(clip);
+      if (!buffer) {
+        continue;
+      }
+
+      const clipDuration = Math.min(clip.duration, buffer.duration);
+      const clipEndTime = clip.start + clipDuration;
+      if (clipDuration <= 0 || this.currentTime >= clipEndTime) {
+        continue;
+      }
+
+      const startsIn = Math.max(clip.start - this.currentTime, 0);
+      const offset = Math.max(this.currentTime - clip.start, 0);
+      const remainingDuration = clipDuration - offset;
+      if (remainingDuration <= 0) {
+        continue;
+      }
+
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.audioContext.destination);
+      source.onended = () => {
+        if (this.audioSources.get(clip) === source) {
+          this.audioSources.delete(clip);
+        }
+      };
+
+      source.start(contextStartTime + startsIn, offset, remainingDuration);
+      this.audioSources.set(clip, source);
+    }
+  }
+
+  private stopAudioSources(): void {
+    for (const source of this.audioSources.values()) {
+      source.onended = null;
+      source.stop();
+      source.disconnect();
+    }
+    this.audioSources.clear();
   }
 
   private get duration(): number {
