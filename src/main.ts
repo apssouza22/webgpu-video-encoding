@@ -1,5 +1,5 @@
 import { DEMO_COMPOSITION } from './composition';
-import { GpuVideoExporter, downloadBlob } from './export/GpuVideoExporter';
+import { CompositionExporter, downloadBlob } from './export/CompositionExporter';
 import { CompositionPlayer } from './player/CompositionPlayer';
 
 const statusEl = document.getElementById('status');
@@ -57,7 +57,7 @@ async function exportComposition(): Promise<void> {
   player?.pause();
   setStatus('Starting GPU export (WebCodecs + MediaBunny)…');
 
-  const exporter = new GpuVideoExporter();
+  const exporter = new CompositionExporter();
 
   try {
     const blob = await exporter.export(DEMO_COMPOSITION, (progress) => {

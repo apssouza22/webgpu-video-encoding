@@ -1,10 +1,5 @@
 import {GpuCompositor} from '../gpu/GpuCompositor';
-import type {Composition, ImageClip, VideoClip} from '../types';
-
-interface VideoLayerElement {
-  clip: VideoClip;
-  element: HTMLVideoElement;
-}
+import type {Composition, ImageClip} from '../types';
 
 interface ImageLayerElement {
   clip: ImageClip;
@@ -16,13 +11,16 @@ export class CompositionPlayer {
   private readonly canvas: HTMLCanvasElement;
   private readonly canvasContext: GPUCanvasContext;
   private readonly compositor: GpuCompositor;
-  private readonly videoLayers: VideoLayerElement[];
   private readonly imageLayers: ImageLayerElement[];
   private readonly playButton: HTMLButtonElement;
   private readonly scrubber: HTMLInputElement;
   private readonly timeLabel: HTMLSpanElement;
   private animationFrame: number | null = null;
-  private videoFrameCallback: number | null = null;
+  private currentTime = 0;
+  private isPlaying = false;
+  private playStartedAt = 0;
+  private playStartedTime = 0;
+  private renderVersion = 0;
 
   static async create(
     composition: Composition,
@@ -86,57 +84,23 @@ export class CompositionPlayer {
     this.timeLabel = document.createElement('span');
     this.timeLabel.className = 'composition-player__time';
 
-    this.videoLayers = composition.videoLayers.map((clip) => this.createVideoLayer(clip));
     this.imageLayers = composition.imageLayers.map((clip) => this.createImageLayer(clip));
 
     this.root.appendChild(this.canvas);
-    for (const {element} of this.videoLayers) {
-      this.root.appendChild(element);
-    }
     this.root.appendChild(this.createControls());
 
     container.replaceChildren(this.root);
     this.updateControls();
-  }
-
-  get primaryVideo(): HTMLVideoElement | null {
-    return this.videoLayers[0]?.element ?? null;
+    void this.renderCurrentFrame();
   }
 
   pause(): void {
-    this.primaryVideo?.pause();
+    this.pausePlayback();
   }
 
   destroy(): void {
-    this.cancelScheduledRender();
-
+    this.pausePlayback();
     this.compositor.destroy();
-  }
-
-  private createVideoLayer(clip: VideoClip): VideoLayerElement {
-    const element = document.createElement('video');
-    element.src = clip.url;
-    element.controls = false;
-    element.playsInline = true;
-    element.preload = 'metadata';
-    element.className = 'composition-player__source-video';
-
-    element.addEventListener('play', () => this.startLayerUpdates());
-    element.addEventListener('pause', () => this.stopLayerUpdates());
-    element.addEventListener('ended', () => this.stopLayerUpdates());
-    element.addEventListener('loadedmetadata', () => {
-      this.updateDuration();
-      void this.renderCurrentFrame();
-    });
-    element.addEventListener('loadeddata', () => void this.renderCurrentFrame());
-    element.addEventListener('canplay', () => void this.renderCurrentFrame());
-    element.addEventListener('seeked', () => {
-      this.updateControls();
-      void this.renderCurrentFrame();
-    });
-    element.addEventListener('timeupdate', () => this.updateControls());
-
-    return {clip, element};
   }
 
   private createImageLayer(clip: ImageClip): ImageLayerElement {
@@ -154,127 +118,118 @@ export class CompositionPlayer {
     controls.className = 'composition-player__controls';
 
     this.playButton.addEventListener('click', () => {
-      const video = this.primaryVideo;
-      if (!video) {
-        return;
-      }
-
-      if (video.paused) {
-        void video.play();
+      if (this.isPlaying) {
+        this.pausePlayback();
       } else {
-        video.pause();
+        this.startPlayback();
       }
     });
 
     this.scrubber.addEventListener('input', () => {
-      const video = this.primaryVideo;
-      if (!video) {
-        return;
+      this.currentTime = Number(this.scrubber.value);
+      if (this.isPlaying) {
+        this.playStartedAt = performance.now();
+        this.playStartedTime = this.currentTime;
       }
-
-      video.currentTime = Number(this.scrubber.value);
       this.updateControls();
+      void this.renderCurrentFrame();
     });
 
     controls.append(this.playButton, this.scrubber, this.timeLabel);
     return controls;
   }
 
-  private startLayerUpdates(): void {
-    if (this.animationFrame !== null) {
-      return;
+  private startPlayback(): void {
+    if (this.currentTime >= this.duration) {
+      this.currentTime = 0;
     }
 
+    this.isPlaying = true;
+    this.playStartedAt = performance.now();
+    this.playStartedTime = this.currentTime;
     this.playButton.textContent = 'Pause';
-    this.scheduleNextRender();
+    this.schedulePlaybackFrame();
   }
 
-  private stopLayerUpdates(): void {
-    this.cancelScheduledRender();
+  private pausePlayback(): void {
+    if (this.isPlaying) {
+      this.currentTime = this.playbackTime();
+    }
+
+    this.isPlaying = false;
+    this.cancelPlaybackFrame();
     this.playButton.textContent = 'Play';
-    this.updateControls();
-    void this.renderCurrentFrame();
-  }
-
-  private updateDuration(): void {
-    const video = this.primaryVideo;
-    const duration = video && Number.isFinite(video.duration)
-      ? video.duration
-      : this.composition.duration;
-
-    this.scrubber.max = `${Math.max(duration, 0)}`;
     this.updateControls();
   }
 
   private updateControls(): void {
-    const video = this.primaryVideo;
-    const currentTime = video?.currentTime ?? 0;
-    const duration = Number(this.scrubber.max) || this.composition.duration;
-
-    this.scrubber.value = `${currentTime}`;
-    this.timeLabel.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`;
+    this.scrubber.max = `${this.duration}`;
+    this.scrubber.value = `${this.currentTime}`;
+    this.timeLabel.textContent = `${this.formatTime(this.currentTime)} / ${this.formatTime(this.duration)}`;
   }
 
-  private scheduleNextRender(): void {
-    const video = this.primaryVideo;
-    if (!video || video.paused || video.ended) {
-      return;
-    }
-
-    if ('requestVideoFrameCallback' in video) {
-      if (this.videoFrameCallback !== null) {
-        return;
-      }
-
-      this.videoFrameCallback = video.requestVideoFrameCallback(async () => {
-        this.videoFrameCallback = null;
-        await this.renderCurrentFrame();
-        this.scheduleNextRender();
-      });
-      return;
-    }
-
-    if (this.animationFrame !== null) {
+  private schedulePlaybackFrame(): void {
+    if (!this.isPlaying || this.animationFrame !== null) {
       return;
     }
 
     this.animationFrame = requestAnimationFrame(async () => {
       this.animationFrame = null;
+      if (!this.isPlaying) {
+        return;
+      }
+
+      this.currentTime = this.playbackTime();
+      if (this.currentTime >= this.duration) {
+        this.currentTime = this.duration;
+        this.pausePlayback();
+        return;
+      }
+
       await this.renderCurrentFrame();
-      this.scheduleNextRender();
+      this.schedulePlaybackFrame();
     });
   }
 
-  private cancelScheduledRender(): void {
-    const video = this.primaryVideo;
-    if (this.videoFrameCallback !== null && video && 'cancelVideoFrameCallback' in video) {
-      video.cancelVideoFrameCallback(this.videoFrameCallback);
-    }
-    this.videoFrameCallback = null;
-
+  private cancelPlaybackFrame(): void {
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
       this.animationFrame = null;
     }
   }
 
+  private playbackTime(): number {
+    return Math.min(
+      this.duration,
+      this.playStartedTime + (performance.now() - this.playStartedAt) / 1000,
+    );
+  }
+
   private async renderCurrentFrame(): Promise<void> {
-    const video = this.primaryVideo;
-    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+    const renderVersion = ++this.renderVersion;
+    const renderTime = Math.min(this.currentTime, Math.max(0, this.duration - 0.001));
+    const frameContext = this.composition.getFrameContextAtTime(renderTime);
+    const videoLayer = frameContext.videos[0];
+    if (!videoLayer) {
       return;
     }
 
     this.updateControls();
 
-    const sourceFrame = new VideoFrame(video, {
-      timestamp: Math.round(video.currentTime * 1_000_000),
-    });
-    const imageLayer = this.currentImageLayer(video.currentTime);
+    const sourceFrame = await videoLayer.clip.nextSourceFrame(
+      videoLayer.sourceTime,
+      frameContext.frame,
+    );
+    const imageLayer = this.currentImageLayer(renderTime);
 
     try {
+      if (renderVersion !== this.renderVersion) {
+        return;
+      }
+
       await this.compositor.renderFrame(this.canvasContext, {
-        time: video.currentTime,
-        videoFrame: sourceFrame,
+        time: renderTime,
+        videoFrame: sourceFrame.frame,
         overlayImage: imageLayer?.element.complete ? imageLayer.element : null,
         imageClip: imageLayer?.clip ?? null,
       });
@@ -285,6 +240,10 @@ export class CompositionPlayer {
 
   private currentImageLayer(time: number): ImageLayerElement | null {
     return this.imageLayers.find(({clip}) => clip.containsTime(time)) ?? null;
+  }
+
+  private get duration(): number {
+    return Math.max(this.composition.duration, 0);
   }
 
   private formatTime(time: number): string {

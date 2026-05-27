@@ -8,7 +8,7 @@ import {extractAudioFromUrl} from '../media/AudioExtractor';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
-export class GpuVideoExporter {
+export class CompositionExporter {
 
   async export(composition: Composition, onProgress: ProgressCallback): Promise<Blob> {
     if (!navigator.gpu) {
