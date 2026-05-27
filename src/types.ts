@@ -2,9 +2,15 @@ import {
   MediaBunnyVideoFrameSource,
   type DecodedVideoFrame,
 } from './media/VideoFrameSource';
+import {
+  Input,
+  ALL_FORMATS,
+  BlobSource,
+  AudioBufferSink,
+} from 'mediabunny';
 import { loadImage } from './media/MediaLoader';
 
-export type ClipType = 'video' | 'image';
+export type ClipType = 'video' | 'image' | 'audio';
 
 export interface CompositionOptions {
   /** Timeline length in seconds; <= 0 derives from clips and source media. */
@@ -164,7 +170,105 @@ export class ImageClip extends Clip {
   }
 }
 
-export type LayerClipDefinition = VideoClip | ImageClip;
+export class AudioClip extends Clip {
+  readonly type = 'audio';
+  private input: Input | null = null;
+  private sourceDuration = 0;
+
+  constructor(
+    url: string,
+    start: number,
+    duration = 0,
+  ) {
+    super(url, start, duration, 0, 0, 0, 0);
+  }
+
+  async openAudioSource(): Promise<void> {
+    if (this.input) {
+      return;
+    }
+
+    const response = await fetch(this.url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio source: ${this.url} (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    this.input = new Input({
+      source: new BlobSource(blob),
+      formats: ALL_FORMATS,
+    });
+
+    const audioTrack = await this.input.getPrimaryAudioTrack();
+    if (!audioTrack) {
+      this.sourceDuration = 0;
+      return;
+    }
+
+    this.sourceDuration = await audioTrack.computeDuration();
+    this.duration = this.resolveDurationFromSource();
+  }
+
+  async getAudioBuffer(): Promise<AudioBuffer | null> {
+    await this.openAudioSource();
+
+    const audioTrack = await this.input?.getPrimaryAudioTrack();
+    if (!audioTrack || this.duration <= 0) {
+      return null;
+    }
+
+    const sampleRate = audioTrack.sampleRate;
+    const channels = Math.min(2, Math.max(1, audioTrack.numberOfChannels));
+    const startTime = 0;
+    const endTime = startTime + this.duration;
+    const frameCount = Math.ceil(this.duration * sampleRate);
+
+    const audioContext = new AudioContext({ sampleRate });
+    const merged = audioContext.createBuffer(channels, frameCount, sampleRate);
+    const sink = new AudioBufferSink(audioTrack);
+
+    for await (const wrapped of sink.buffers(startTime, endTime)) {
+      const offset = Math.round((wrapped.timestamp - startTime) * sampleRate);
+      if (offset >= frameCount) {
+        continue;
+      }
+
+      const source = wrapped.buffer;
+      for (let channel = 0; channel < channels; channel++) {
+        const srcChannel = source.getChannelData(
+          Math.min(channel, source.numberOfChannels - 1),
+        );
+        const dstChannel = merged.getChannelData(channel);
+        const copyLength = Math.min(srcChannel.length, frameCount - offset);
+        for (let i = 0; i < copyLength; i++) {
+          dstChannel[offset + i] = srcChannel[i];
+        }
+      }
+    }
+
+    return merged;
+  }
+
+  disposeSource(): void {
+    this.input?.dispose();
+    this.input = null;
+    this.sourceDuration = 0;
+  }
+
+  private resolveDurationFromSource(): number {
+    if (this.sourceDuration <= 0) {
+      return Math.max(0, this.duration);
+    }
+
+    if (this.duration <= 0) {
+      return this.sourceDuration;
+    }
+
+    return Math.min(this.duration, this.sourceDuration);
+  }
+}
+
+export type LayerClipDefinition = VideoClip | ImageClip | AudioClip;
 
 export class Composition {
   private readonly layerList: LayerClipDefinition[] = [];
@@ -208,12 +312,20 @@ export class Composition {
     return this.layerList.filter((clip): clip is ImageClip => clip.type === 'image');
   }
 
+  get audioLayers(): AudioClip[] {
+    return this.layerList.filter((clip): clip is AudioClip => clip.type === 'audio');
+  }
+
   get video(): VideoClip | null {
     return this.videoLayers[0] ?? null;
   }
 
   get image(): ImageClip | null {
     return this.imageLayers[0] ?? null;
+  }
+
+  get audio(): AudioClip | null {
+    return this.audioLayers[0] ?? null;
   }
 
   async loadVideoSources(): Promise<void> {
@@ -224,10 +336,15 @@ export class Composition {
     await Promise.all(this.imageLayers.map((clip) => clip.loadImageElement()));
   }
 
+  async loadAudioSources(): Promise<void> {
+    await Promise.all(this.audioLayers.map((clip) => clip.openAudioSource()));
+  }
+
   async loadLayerSources(): Promise<void> {
     await Promise.all([
       this.loadVideoSources(),
       this.loadImageSources(),
+      this.loadAudioSources(),
     ]);
   }
 
@@ -238,6 +355,10 @@ export class Composition {
 
     for (const clip of this.imageLayers) {
       clip.disposeImage();
+    }
+
+    for (const clip of this.audioLayers) {
+      clip.disposeSource();
     }
   }
 
@@ -268,6 +389,10 @@ export class Composition {
     time: number,
     frame: number,
   ): LayerClip | null {
+    if (clip.type === 'audio') {
+      return null;
+    }
+
     if (!clip.containsTime(time)) {
       return null;
     }

@@ -4,7 +4,6 @@ import {GpuCompositor} from '../gpu/GpuCompositor';
 import {FrameRender} from './FrameRender';
 import {VideoEncoderService} from './VideoEncoderService';
 import {AudioEncoderService} from './AudioEncoderService';
-import {extractAudioFromUrl} from '../media/AudioExtractor';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
@@ -94,19 +93,18 @@ export class CompositionExporter {
     let includeAudio = false;
     let audioBuffer: AudioBuffer | null = null;
 
-    if (audioSupported) {
+    const audioClip = composition.audio;
+
+    if (audioSupported && audioClip) {
       onProgress({
         phase: 'audio',
         frame: 0,
         totalFrames,
         percent: 0,
-        message: 'Decoding audio from video clip (MediaBunny)…',
+        message: 'Decoding audio from audio clip (MediaBunny)…',
       });
 
-      const videoClip = composition.video;
-      audioBuffer = videoClip
-          ? await extractAudioFromUrl(videoClip.url, 0, videoClip.duration)
-          : null;
+      audioBuffer = await audioClip.getAudioBuffer();
 
       if (audioBuffer) {
         includeAudio = true;
