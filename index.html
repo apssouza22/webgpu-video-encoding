@@ -15,6 +15,48 @@
         background: #111;
         color: #eee;
       }
+      main {
+        max-width: 960px;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 16px 0;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 16px;
+        background: #7eb8ff;
+        color: #07121f;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .composition-player {
+        position: relative;
+        width: min(100%, 960px);
+        overflow: hidden;
+        border: 1px solid #2b2b2b;
+        border-radius: 12px;
+        background: #000;
+      }
+      .composition-player__layer {
+        position: absolute;
+        object-fit: cover;
+      }
+      .composition-player__video {
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .composition-player__image {
+        pointer-events: none;
+      }
       #status {
         white-space: pre-wrap;
         font: 13px/1.5 ui-monospace, monospace;
@@ -26,8 +68,14 @@
     </style>
   </head>
   <body>
-    <h1>gpu-video-export</h1>
-    <p id="status">Initializing…</p>
+    <main>
+      <h1>gpu-video-export</h1>
+      <div id="player"></div>
+      <div class="actions">
+        <button id="export-button" type="button" disabled>Export composition</button>
+        <p id="status">Initializing…</p>
+      </div>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

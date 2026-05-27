@@ -1,7 +1,11 @@
 import { DEMO_COMPOSITION } from './composition';
 import { GpuVideoExporter, downloadBlob } from './export/GpuVideoExporter';
+import { CompositionPlayer } from './player/CompositionPlayer';
 
 const statusEl = document.getElementById('status');
+const playerEl = document.getElementById('player');
+const exportButton = document.getElementById('export-button') as HTMLButtonElement | null;
+let player: CompositionPlayer | null = null;
 
 function setStatus(message: string): void {
   if (statusEl) {
@@ -19,7 +23,7 @@ async function verifySamples(): Promise<void> {
       throw new Error(
         `Missing sample media: ${url}\n\n` +
           'Add files under public/samples/:\n' +
-          '  - video-2.mp4 (with audio track)\n' +
+          '  - video.mp4 (with audio track)\n' +
           '  - overlay.png\n\n' +
           'See README.md for details.',
       );
@@ -31,23 +35,52 @@ async function main(): Promise<void> {
   setStatus('Checking sample media…');
   await verifySamples();
 
+  if (!playerEl || !exportButton) {
+    throw new Error('Missing player or export button markup');
+  }
+
+  setStatus('Loading preview…');
+  await DEMO_COMPOSITION.loadLayerSources();
+  player = new CompositionPlayer(DEMO_COMPOSITION, playerEl);
+  setStatus('Preview ready. Press Export composition to render an MP4.');
+
+  exportButton.disabled = false;
+  exportButton.addEventListener('click', exportComposition);
+}
+
+async function exportComposition(): Promise<void> {
+  if (!exportButton) {
+    return;
+  }
+
+  exportButton.disabled = true;
+  player?.primaryVideo?.pause();
   setStatus('Starting GPU export (WebCodecs + MediaBunny)…');
+
   const exporter = new GpuVideoExporter();
 
-  const blob = await exporter.export(DEMO_COMPOSITION, (progress) => {
-    setStatus(
-      `[${progress.phase}] ${progress.percent.toFixed(1)}% — ${progress.message}`,
-    );
-  });
+  try {
+    const blob = await exporter.export(DEMO_COMPOSITION, (progress) => {
+      setStatus(
+        `[${progress.phase}] ${progress.percent.toFixed(1)}% — ${progress.message}`,
+      );
+    });
 
-  downloadBlob(blob, DEMO_COMPOSITION.outputFilename);
-  setStatus(
-    `Done. Saved ${DEMO_COMPOSITION.outputFilename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`,
-  );
+    downloadBlob(blob, DEMO_COMPOSITION.outputFilename);
+    setStatus(
+      `Done. Saved ${DEMO_COMPOSITION.outputFilename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setStatus(`Export failed:\n${message}`);
+    console.error(error);
+  } finally {
+    exportButton.disabled = false;
+  }
 }
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  setStatus(`Export failed:\n${message}`);
+  setStatus(`Initialization failed:\n${message}`);
   console.error(error);
 });
