@@ -1,29 +1,14 @@
 import type {Composition} from '../composition';
-import type {ExportProgress, VideoClip, VideoFrameContext} from '../types';
-import {ExporterCanvas} from '../gpu/ExporterCanvas';
-import {GpuCompositor} from '../gpu/GpuCompositor';
-import {FrameRender} from './FrameRender';
-import {VideoEncoderService} from './VideoEncoderService';
-import {AudioEncoderService} from './AudioEncoderService';
+import type {ExportProgress} from '../types';
+import {AudioExport} from './AudioExport';
+import {VideoExport} from './VideoExport';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
 export class CompositionExporter {
 
   async export(composition: Composition, onProgress: ProgressCallback): Promise<Blob> {
-    if (!navigator.gpu) {
-      throw new Error('WebGPU is not available');
-    }
-
-    const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) {
-      throw new Error('Failed to acquire GPU adapter');
-    }
-
-    const device = await adapter.requestDevice();
-
-    const exportCanvas = new ExporterCanvas();
-    let compositor: GpuCompositor | null = null;
+    let videoExport: VideoExport | null = null;
 
     try {
       await composition.loadLayerSources();
@@ -31,33 +16,24 @@ export class CompositionExporter {
       const exportDuration = composition.duration;
 
       const totalFrames = Math.ceil(exportDuration * composition.fps);
-      const frameDurationUs = Math.round(1_000_000 / composition.fps);
-      const {includeAudio, videoEncoder} = await this.createVideoEncoder(
-          onProgress,
-          totalFrames,
-          composition,
-      );
+      const audioExport = await AudioExport.create({
+        audioClips: composition.audioLayers,
+        duration: exportDuration,
+        totalFrames,
+        onProgress,
+      });
+      const includeAudio = audioExport.hasAudio;
+      const videoEncoder = await VideoExport.createEncoder(composition, includeAudio);
+      await audioExport.encodeInto(videoEncoder);
 
-      const canvasContext = exportCanvas.init(device, composition.width, composition.height);
-      compositor = await GpuCompositor.create(device, exportCanvas.getFormat());
-
-
-      const frameRender = new FrameRender({
-        frameDurationUs,
-        compositor,
-        canvasContext,
-        exportCanvas,
-        device,
+      videoExport = await VideoExport.create({
+        composition,
         videoEncoder,
+        hasAudio: includeAudio,
+        onProgress,
       });
 
-      const framesList = composition.getAllFrames()
-      await this.bindVideoFrameStreams(framesList);
-
-      for (const frame of framesList) {
-        await frameRender.renderAndEncode(frame);
-        this.reportProgress(onProgress, frame.frame, totalFrames, includeAudio);
-      }
+      await videoExport.render();
 
       onProgress({
         phase: 'mux',
@@ -79,95 +55,9 @@ export class CompositionExporter {
 
       return blob;
     } finally {
-      compositor?.destroy();
-      exportCanvas.destroy();
+      videoExport?.destroy();
       composition.disposeLayerSources();
     }
-  }
-
-  private async createVideoEncoder(
-      onProgress: (progress: ExportProgress) => void,
-      totalFrames: number,
-      composition: Composition,
-  ) {
-    const audioSupported = await AudioEncoderService.isSupported();
-    let includeAudio = false;
-    let audioBuffer: AudioBuffer | null = null;
-
-    const audioClip = composition.audio;
-
-    if (audioSupported && audioClip) {
-      onProgress({
-        phase: 'audio',
-        frame: 0,
-        totalFrames,
-        percent: 0,
-        message: 'Decoding audio from audio clip (MediaBunny)…',
-      });
-
-      audioBuffer = await audioClip.getAudioBuffer();
-
-      if (audioBuffer) {
-        includeAudio = true;
-      } else {
-        console.warn('No audio track found — exporting video only');
-      }
-    }
-
-    const videoEncoder = new VideoEncoderService({
-      width: composition.width,
-      height: composition.height,
-      fps: composition.fps,
-      bitrate: 8_000_000,
-      hasAudio: includeAudio,
-    });
-    await videoEncoder.init();
-
-    if (audioBuffer) {
-      const audioEncoder = new AudioEncoderService(audioBuffer.sampleRate, 2, 192_000);
-      await audioEncoder.encodeBuffer(audioBuffer, (chunk, metadata) => {
-        videoEncoder.addAudioChunk(chunk, metadata);
-      });
-    }
-
-    return {includeAudio, videoEncoder};
-  }
-
-  private async bindVideoFrameStreams(videoFrames: VideoFrameContext[]): Promise<void> {
-    const clips = this.getVideoClips(videoFrames);
-    await Promise.all(
-        Array.from(clips, (clip) => clip.bindFrameStream(videoFrames)),
-    );
-  }
-
-  private getVideoClips(videoFrames: VideoFrameContext[]) {
-    const clips = new Set<VideoClip>();
-
-    for (const context of videoFrames) {
-      for (const videoLayer of context.videos) {
-        clips.add(videoLayer.clip);
-      }
-    }
-
-    return clips;
-  }
-
-  private reportProgress(
-    onProgress: ProgressCallback,
-    frame: number,
-    totalFrames: number,
-    includeAudio: boolean,
-  ): void {
-    const encodedFrames = frame + 1;
-    const percent = (encodedFrames / totalFrames) * (includeAudio ? 95 : 100);
-
-    onProgress({
-      phase: 'video',
-      frame: encodedFrames,
-      totalFrames,
-      percent,
-      message: `GPU frame ${encodedFrames}/${totalFrames}`,
-    });
   }
 }
 

@@ -8,7 +8,7 @@ import {
   BlobSource,
   AudioBufferSink,
 } from 'mediabunny';
-import { loadImage } from './media/MediaLoader';
+import { loadImage } from './media/ImageLoader';
 
 export type ClipType = 'video' | 'image' | 'audio';
 
