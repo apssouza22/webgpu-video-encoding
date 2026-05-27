@@ -1,15 +1,11 @@
-import {GpuCompositor} from '../gpu/GpuCompositor';
-import {PlayerCanvas} from '../gpu/PlayerCanvas';
 import type {Composition} from '../composition';
-import type {ImageClip} from '../types';
 import {AudioPlayer} from './AudioPlayer';
+import {VideoPlayer} from './VideoPlayer';
 
 export class CompositionPlayer {
   private readonly root: HTMLElement;
-  private readonly playerCanvas: PlayerCanvas;
-  private readonly compositor: GpuCompositor;
+  private readonly videoPlayer: VideoPlayer;
   private readonly audioPlayer: AudioPlayer;
-  private readonly imageLayers: ImageClip[];
   private readonly playButton: HTMLButtonElement;
   private readonly scrubber: HTMLInputElement;
   private readonly timeLabel: HTMLSpanElement;
@@ -18,43 +14,33 @@ export class CompositionPlayer {
   private isPlaying = false;
   private playStartedAt = 0;
   private playStartedTime = 0;
-  private renderVersion = 0;
 
   static async create(
     composition: Composition,
     container: HTMLElement,
   ): Promise<CompositionPlayer> {
-    if (!navigator.gpu) {
-      throw new Error('WebGPU is not available');
+    const videoPlayer = await VideoPlayer.create(composition);
+
+    try {
+      const audioPlayer = await AudioPlayer.create(composition.audioLayers);
+      return new CompositionPlayer(composition, container, videoPlayer, audioPlayer);
+    } catch (error) {
+      videoPlayer.destroy();
+      throw error;
     }
-
-    const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) {
-      throw new Error('Failed to acquire GPU adapter');
-    }
-
-    const device = await adapter.requestDevice();
-    const playerCanvas = new PlayerCanvas();
-    playerCanvas.init(device, composition.width, composition.height);
-    const compositor = await GpuCompositor.create(device, playerCanvas.getFormat());
-    const audioPlayer = await AudioPlayer.create(composition.audioLayers);
-
-    return new CompositionPlayer(composition, container, playerCanvas, compositor, audioPlayer);
   }
 
   private constructor(
     private readonly composition: Composition,
     container: HTMLElement,
-    playerCanvas: PlayerCanvas,
-    compositor: GpuCompositor,
+    videoPlayer: VideoPlayer,
     audioPlayer: AudioPlayer,
   ) {
-    this.playerCanvas = playerCanvas;
-    this.compositor = compositor;
+    this.videoPlayer = videoPlayer;
     this.audioPlayer = audioPlayer;
     this.root = document.createElement('div');
     this.root.className = 'composition-player';
-    const canvas = this.playerCanvas.getCanvas();
+    const canvas = this.videoPlayer.getCanvas();
     canvas.className = 'composition-player__canvas';
 
     this.playButton = document.createElement('button');
@@ -71,8 +57,6 @@ export class CompositionPlayer {
     this.timeLabel = document.createElement('span');
     this.timeLabel.className = 'composition-player__time';
 
-    this.imageLayers = composition.imageLayers;
-
     this.root.appendChild(canvas);
     this.root.appendChild(this.createControls());
 
@@ -88,8 +72,7 @@ export class CompositionPlayer {
   destroy(): void {
     this.pausePlayback();
     this.audioPlayer.destroy();
-    this.compositor.destroy();
-    this.playerCanvas.destroy();
+    this.videoPlayer.destroy();
   }
 
   private createControls(): HTMLElement {
@@ -196,45 +179,8 @@ export class CompositionPlayer {
   }
 
   private async renderCurrentFrame(): Promise<void> {
-    const renderVersion = ++this.renderVersion;
-    const renderTime = Math.min(this.currentTime, Math.max(0, this.duration - 0.001));
-    const frameContext = this.composition.getFrameContextAtTime(renderTime);
-    const videoLayer = frameContext.videos[0];
-    if (!videoLayer) {
-      return;
-    }
-
     this.updateControls();
-
-    const sourceFrame = await videoLayer.clip.nextSourceFrame(
-      videoLayer.sourceTime,
-      frameContext.frame,
-    );
-    const imageLayers = this.currentImageLayers(renderTime);
-    const overlays = await Promise.all(
-      imageLayers.map(async (imageClip) => ({
-        image: await imageClip.loadImageElement(),
-        imageClip,
-      })),
-    );
-
-    try {
-      if (renderVersion !== this.renderVersion) {
-        return;
-      }
-
-      await this.compositor.renderFrame(this.playerCanvas.getContext(), {
-        time: renderTime,
-        videoFrame: sourceFrame.frame,
-        overlays,
-      });
-    } finally {
-      sourceFrame.close();
-    }
-  }
-
-  private currentImageLayers(time: number): ImageClip[] {
-    return this.imageLayers.filter((clip) => clip.containsTime(time));
+    await this.videoPlayer.render(this.currentTime, this.duration);
   }
 
   private get duration(): number {

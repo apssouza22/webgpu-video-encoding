@@ -1,17 +1,21 @@
 # gpu-video-export
 
-Minimal browser demo of **GPU compositing → OffscreenCanvas → WebCodecs → MediaBunny MP4**, inspired by MasterSelects export architecture but stripped down.
+Minimal browser demo of **GPU preview/playback + GPU export → OffscreenCanvas → WebCodecs → MediaBunny MP4**.
 
 ## What it does
 
-On page load (Chrome/Edge recommended):
+In a supported desktop browser (Chrome/Edge recommended), the app:
 
-1. Loads a simple composition: **video** base layer, **image** overlay (from 2s), **audio** from the video clip
-2. Renders each frame on a **WebGPU OffscreenCanvas** (no `readPixels` CPU fallback)
-3. Captures **`VideoFrame`** from the canvas (zero-copy path)
-4. Encodes with **`VideoEncoder`** (H.264 / WebCodecs)
-5. Muxes to **MP4** with **MediaBunny**
-6. Automatically downloads `composition-export.mp4`
+1. Loads a timeline-style composition with ordered **video**, **image**, and **audio** layers
+2. Shows an interactive WebGPU preview player with play/pause controls, audio playback, and a scrubber
+3. Renders export frames on a **WebGPU OffscreenCanvas** (no `readPixels` CPU fallback)
+4. Captures each rendered frame as a **`VideoFrame`** from the canvas
+5. Encodes video with **`VideoEncoder`** (H.264 / WebCodecs)
+6. Encodes audio with **`AudioEncoder`** (AAC / WebCodecs) when supported
+7. Muxes everything to **MP4** with **MediaBunny**
+8. Downloads `composition-export.mp4` when export finishes
+
+The demo composition is 1280x720 at 30 fps. It plays `video.mp4` for the first 5 seconds, switches to `video-2.mp4`, schedules explicit audio layers from the same files for preview playback, and displays two transparent image overlays from 1s to 4s. Export currently encodes the first audio layer when browser AAC support is available.
 
 ## Composition API
 
@@ -20,16 +24,21 @@ active clips at a timeline time, and active video clips can decode their next
 source frame from that context.
 
 ```ts
-import { Composition, ImageClip, VideoClip } from './src/composition';
+import { AudioClip, Composition, ImageClip, VideoClip } from './src/composition';
 
-const composition = new Composition(30, 1280, 720);
+const composition = new Composition(30, 1280, 720, {
+  outputFilename: 'composition-export.mp4',
+});
 
 composition
-  .addLayer(new VideoClip('/samples/video.mp4', 0))
-  .addLayer(new ImageClip('/samples/overlay.png', 2, 3, 0.62, 0.08, 0.32, 0.32, 0.92));
+  .addLayer(new VideoClip('/samples/video.mp4', 0, 5))
+  .addLayer(new VideoClip('/samples/video-2.mp4', 5))
+  .addLayer(new AudioClip('/samples/video.mp4', 0, 5))
+  .addLayer(new AudioClip('/samples/video-2.mp4', 5))
+  .addLayer(new ImageClip('/samples/overlay.png', 1, 3, 0.62, 0.08, 0.32, 0.32, 0.92));
 
 const frame = composition.getFrameContextAtTime(2.5);
-const sourceFrame = await frame.video?.nextSourceFrame();
+const sourceFrame = await frame.videos[0]?.nextSourceFrame();
 ```
 
 ## Requirements
@@ -37,8 +46,11 @@ const sourceFrame = await frame.video?.nextSourceFrame();
 - Browser with **WebGPU**, **WebCodecs** (`VideoEncoder`, `AudioEncoder`), and `VideoFrame(OffscreenCanvas)`
 - **Chrome or Edge (desktop)** recommended — Safari/Firefox often lack H.264 `VideoEncoder` support; the app probes several `avc1.*` profiles automatically
 - Sample media in `public/samples/`:
-  - `video.mp4` — clip **with an audio track** (export length follows the file; overlay timing is set in `composition.ts`)
-  - `overlay.png` — PNG with transparency for the overlay
+  - `video.mp4` — first video clip, ideally with an audio track
+  - `video-2.mp4` — second video clip, ideally with an audio track
+  - `overlay.png` — transparent PNG shown on the right side from 1s to 4s
+  - `overlay-2.png` — transparent PNG shown on the left side from 1s to 4s
+- MediaBunny dependency is currently resolved from `../MasterSelects/node_modules/mediabunny`; adjust `package.json` if you want to install it from npm or another local path
 
 ## Quick start
 
@@ -46,28 +58,39 @@ const sourceFrame = await frame.video?.nextSourceFrame();
 cd gpu-video-export
 npm install
 # copy your files:
+#   public/samples/video.mp4
 #   public/samples/video-2.mp4
 #   public/samples/overlay.png
+#   public/samples/overlay-2.png
 npm run dev
 ```
 
-Open http://localhost:5180 — export runs automatically and triggers a download.
+Open http://localhost:5180. The app checks sample media, loads the preview player, then enables **Export composition**. Press the button to render and download the MP4.
 
 ## Project layout
 
 ```
 src/
-  composition.ts      # Public composition API and demo timeline
+  composition.ts          # Public composition API and demo timeline
+  main.ts                 # Sample checks, preview boot, export button wiring
+  types.ts                # Clip types and frame/export contracts
   export/
-    GpuVideoExporter.ts   # Orchestrator
+    CompositionExporter.ts # Export orchestrator
+    FrameRender.ts        # Render one timeline frame and encode it
     VideoEncoderService.ts
     AudioEncoderService.ts
     MediaBunnyMuxer.ts
   gpu/
-    ExportCanvas.ts     # OffscreenCanvas + VideoFrame capture
-    GpuCompositor.ts    # WebGPU composite (video + image)
+    PlayerCanvas.ts       # On-page WebGPU preview canvas
+    ExporterCanvas.ts     # OffscreenCanvas + VideoFrame capture
+    GpuCompositor.ts      # WebGPU composite (video + image overlays)
   media/
-    MediaLoader.ts      # Load/seek video, offline audio render
+    MediaLoader.ts        # Image loading helpers
+    VideoFrameSource.ts   # MediaBunny video decode helpers
+  player/
+    CompositionPlayer.ts  # Preview UI and playback loop
+    VideoPlayer.ts        # WebGPU video preview renderer
+    AudioPlayer.ts        # Audio preview scheduling
   shaders/
     composite.wgsl
 ```
