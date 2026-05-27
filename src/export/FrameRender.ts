@@ -1,4 +1,4 @@
-import type { ExportProgress, VideoFrameContext } from '../types';
+import type { VideoFrameContext } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { VideoEncoderService } from './VideoEncoderService';
@@ -11,9 +11,6 @@ export interface FrameRenderOptions {
   exportCanvas: ExportCanvas;
   device: GPUDevice;
   videoEncoder: VideoEncoderService;
-  totalFrames: number;
-  includeAudio: boolean;
-  onProgress: (progress: ExportProgress) => void;
 }
 
 export class FrameRender {
@@ -23,9 +20,6 @@ export class FrameRender {
   private readonly exportCanvas: ExportCanvas;
   private readonly device: GPUDevice;
   private readonly videoEncoder: VideoEncoderService;
-  private readonly totalFrames: number;
-  private readonly includeAudio: boolean;
-  private readonly onProgress: (progress: ExportProgress) => void;
 
   constructor(options: FrameRenderOptions) {
     this.frameDurationUs = options.frameDurationUs;
@@ -34,9 +28,6 @@ export class FrameRender {
     this.exportCanvas = options.exportCanvas;
     this.device = options.device;
     this.videoEncoder = options.videoEncoder;
-    this.totalFrames = options.totalFrames;
-    this.includeAudio = options.includeAudio;
-    this.onProgress = options.onProgress;
   }
 
   async renderAndEncode(frameContext: VideoFrameContext): Promise<void> {
@@ -49,7 +40,6 @@ export class FrameRender {
     try {
       await this.renderFrame(frameContext, sourceFrame.frame);
       await this.encodeFrame(frameContext);
-      this.reportProgress(frameContext.frame);
     } finally {
       sourceFrame.close();
     }
@@ -88,18 +78,5 @@ export class FrameRender {
     } finally {
       videoFrame.close();
     }
-  }
-
-  private reportProgress(frame: number): void {
-    const encodedFrames = frame + 1;
-    const percent = (encodedFrames / this.totalFrames) * (this.includeAudio ? 95 : 100);
-
-    this.onProgress({
-      phase: 'video',
-      frame: encodedFrames,
-      totalFrames: this.totalFrames,
-      percent,
-      message: `GPU frame ${encodedFrames}/${this.totalFrames}`,
-    });
   }
 }

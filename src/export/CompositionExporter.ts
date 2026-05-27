@@ -53,9 +53,6 @@ export class CompositionExporter {
         exportCanvas,
         device,
         videoEncoder,
-        totalFrames,
-        includeAudio,
-        onProgress,
       });
 
       const framesList = composition.getAllFrames()
@@ -63,6 +60,7 @@ export class CompositionExporter {
 
       for (const frame of framesList) {
         await frameRender.renderAndEncode(frame);
+        this.reportProgress(onProgress, frame.frame, totalFrames, includeAudio);
       }
 
       onProgress({
@@ -157,6 +155,24 @@ export class CompositionExporter {
     }
 
     return clips;
+  }
+
+  private reportProgress(
+    onProgress: ProgressCallback,
+    frame: number,
+    totalFrames: number,
+    includeAudio: boolean,
+  ): void {
+    const encodedFrames = frame + 1;
+    const percent = (encodedFrames / totalFrames) * (includeAudio ? 95 : 100);
+
+    onProgress({
+      phase: 'video',
+      frame: encodedFrames,
+      totalFrames,
+      percent,
+      message: `GPU frame ${encodedFrames}/${totalFrames}`,
+    });
   }
 }
 
