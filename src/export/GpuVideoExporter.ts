@@ -1,12 +1,11 @@
-import type {Composition, ExportProgress, VideoFrameContext, VideoClip, VideoLayerClip} from '../types';
-import { ExportCanvas } from '../gpu/ExportCanvas';
-import { GpuCompositor } from '../gpu/GpuCompositor';
-import { FrameRender } from './FrameRender';
-import { VideoEncoderService } from './VideoEncoderService';
-import { AudioEncoderService } from './AudioEncoderService';
-import { extractAudioFromUrl } from '../media/AudioExtractor';
-import { buildRenderFrameContext } from '../composition';
-import type { DecodedVideoFrame } from '../media/VideoFrameSource';
+import type {Composition, ExportProgress, VideoClip, VideoFrameContext, VideoLayerClip} from '../types';
+import {ExportCanvas} from '../gpu/ExportCanvas';
+import {GpuCompositor} from '../gpu/GpuCompositor';
+import {FrameRender} from './FrameRender';
+import {VideoEncoderService} from './VideoEncoderService';
+import {AudioEncoderService} from './AudioEncoderService';
+import {extractAudioFromUrl} from '../media/AudioExtractor';
+import type {DecodedVideoFrame} from '../media/VideoFrameSource';
 
 export type ProgressCallback = (progress: ExportProgress) => void;
 
@@ -35,24 +34,20 @@ export class GpuVideoExporter {
 
       const totalFrames = Math.ceil(exportDuration * composition.fps);
       const frameDurationUs = Math.round(1_000_000 / composition.fps);
-      const { includeAudio, videoEncoder } = await this.createVideoEncoder(
-        onProgress,
-        totalFrames,
-        composition,
+      const {includeAudio, videoEncoder} = await this.createVideoEncoder(
+          onProgress,
+          totalFrames,
+          composition,
       );
 
       const canvasContext = exportCanvas.init(device, composition.width, composition.height);
       compositor = await GpuCompositor.create(
-        device,
-        canvasFormat,
+          device,
+          canvasFormat,
       );
 
-      const videoFrames = this.buildRenderFrameContexts(
-        composition,
-        totalFrames,
-        frameDurationUs,
-      );
-      await this.bindVideoFrameStreams(videoFrames);
+      const framesList = composition.getAllFrames()
+      await this.bindVideoFrameStreams(framesList);
 
       const frameRender = new FrameRender({
         frameDurationUs,
@@ -66,7 +61,7 @@ export class GpuVideoExporter {
         onProgress,
       });
 
-      for (const frame of videoFrames) {
+      for (const frame of framesList) {
         await frameRender.renderAndEncode(frame);
       }
 
@@ -97,9 +92,9 @@ export class GpuVideoExporter {
   }
 
   private async createVideoEncoder(
-    onProgress: (progress: ExportProgress) => void,
-    totalFrames: number,
-    composition: Composition,
+      onProgress: (progress: ExportProgress) => void,
+      totalFrames: number,
+      composition: Composition,
   ) {
     const audioSupported = await AudioEncoderService.isSupported();
     let includeAudio = false;
@@ -116,8 +111,8 @@ export class GpuVideoExporter {
 
       const videoClip = composition.video;
       audioBuffer = videoClip
-        ? await extractAudioFromUrl(videoClip.url, 0, videoClip.duration)
-        : null;
+          ? await extractAudioFromUrl(videoClip.url, 0, videoClip.duration)
+          : null;
 
       if (audioBuffer) {
         includeAudio = true;
@@ -142,17 +137,7 @@ export class GpuVideoExporter {
       });
     }
 
-    return { includeAudio, videoEncoder };
-  }
-
-  private buildRenderFrameContexts(
-    composition: Composition,
-    totalFrames: number,
-    frameDurationUs: number,
-  ): VideoFrameContext[] {
-    return Array.from({ length: totalFrames }, (_, frame) =>
-      buildRenderFrameContext(composition, frame, frameDurationUs),
-    );
+    return {includeAudio, videoEncoder};
   }
 
   private async bindVideoFrameStreams(videoFrames: VideoFrameContext[]): Promise<void> {

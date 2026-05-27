@@ -261,6 +261,15 @@ export class Composition {
       localTime,
     };
   }
+
+  getAllFrames(): VideoFrameContext[] {
+    const totalFrames = Math.ceil(this.duration * this.fps);
+    const frameDurationUs = Math.round(1_000_000 / this.fps);
+    return Array.from({length: totalFrames}, (_, frame) => {
+      const time = frame / this.fps;
+      return this.getFrameContextAtTime(time, frame, frameDurationUs);
+    });
+  }
 }
 
 export interface VideoLayerClip {
