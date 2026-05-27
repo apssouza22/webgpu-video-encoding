@@ -41,7 +41,7 @@ async function main(): Promise<void> {
 
   setStatus('Loading preview…');
   await DEMO_COMPOSITION.loadLayerSources();
-  player = new CompositionPlayer(DEMO_COMPOSITION, playerEl);
+  player = await CompositionPlayer.create(DEMO_COMPOSITION, playerEl);
   setStatus('Preview ready. Press Export composition to render an MP4.');
 
   exportButton.disabled = false;
@@ -54,7 +54,7 @@ async function exportComposition(): Promise<void> {
   }
 
   exportButton.disabled = true;
-  player?.primaryVideo?.pause();
+  player?.pause();
   setStatus('Starting GPU export (WebCodecs + MediaBunny)…');
 
   const exporter = new GpuVideoExporter();

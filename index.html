@@ -45,17 +45,38 @@
         border-radius: 12px;
         background: #000;
       }
-      .composition-player__layer {
-        position: absolute;
-        object-fit: cover;
-      }
-      .composition-player__video {
-        inset: 0;
+      .composition-player__canvas {
+        display: block;
         width: 100%;
-        height: 100%;
       }
-      .composition-player__image {
+      .composition-player__source-image {
+        display: none;
+      }
+      .composition-player__source-video {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
         pointer-events: none;
+      }
+      .composition-player__controls {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #181818;
+      }
+      .composition-player__controls input[type='range'] {
+        width: 100%;
+      }
+      .composition-player__time {
+        min-width: 72px;
+        text-align: right;
+        font: 13px/1.5 ui-monospace, monospace;
+        color: #bbb;
       }
       #status {
         white-space: pre-wrap;
