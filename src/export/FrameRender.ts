@@ -1,4 +1,4 @@
-import type { ExportProgress, ImageClip, RenderFrameContext } from '../types';
+import type { ExportProgress, VideoFrameContext } from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { VideoEncoderService } from './VideoEncoderService';
@@ -8,7 +8,6 @@ export interface FrameRenderOptions {
   frameDurationUs: number;
   compositor: GpuCompositor;
   canvasContext: GPUCanvasContext;
-  overlayImages: Map<ImageClip, HTMLImageElement>;
   exportCanvas: ExportCanvas;
   device: GPUDevice;
   videoEncoder: VideoEncoderService;
@@ -19,9 +18,8 @@ export interface FrameRenderOptions {
 
 export class FrameRender {
   private readonly frameDurationUs: number;
-  private readonly compositor: GpuCompositor;
+  private readonly gpuCompositor: GpuCompositor;
   private readonly canvasContext: GPUCanvasContext;
-  private readonly overlayImages: Map<ImageClip, HTMLImageElement>;
   private readonly exportCanvas: ExportCanvas;
   private readonly device: GPUDevice;
   private readonly videoEncoder: VideoEncoderService;
@@ -31,9 +29,8 @@ export class FrameRender {
 
   constructor(options: FrameRenderOptions) {
     this.frameDurationUs = options.frameDurationUs;
-    this.compositor = options.compositor;
+    this.gpuCompositor = options.compositor;
     this.canvasContext = options.canvasContext;
-    this.overlayImages = options.overlayImages;
     this.exportCanvas = options.exportCanvas;
     this.device = options.device;
     this.videoEncoder = options.videoEncoder;
@@ -42,23 +39,23 @@ export class FrameRender {
     this.onProgress = options.onProgress;
   }
 
-  async renderAndEncode(context: RenderFrameContext): Promise<void> {
-    if (context.videos.length === 0) {
-      throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
+  async renderAndEncode(frameContext: VideoFrameContext): Promise<void> {
+    if (frameContext.videos.length === 0) {
+      throw new Error(`No video clip is active at ${frameContext.time.toFixed(3)}s`);
     }
 
-    const sourceFrame = await this.nextSourceFrame(context);
+    const sourceFrame = await this.nextSourceFrame(frameContext);
 
     try {
-      await this.renderFrame(context, sourceFrame.frame);
-      await this.encodeFrame(context);
-      this.reportProgress(context.frame);
+      await this.renderFrame(frameContext, sourceFrame.frame);
+      await this.encodeFrame(frameContext);
+      this.reportProgress(frameContext.frame);
     } finally {
       sourceFrame.close();
     }
   }
 
-  private async nextSourceFrame(context: RenderFrameContext): Promise<DecodedVideoFrame> {
+  private async nextSourceFrame(context: VideoFrameContext): Promise<DecodedVideoFrame> {
     const videoLayer = context.videos[0];
     if (!videoLayer) {
       throw new Error(`No video clip is active at ${context.time.toFixed(3)}s`);
@@ -67,11 +64,11 @@ export class FrameRender {
     return videoLayer.nextSourceFrame();
   }
 
-  private async renderFrame(context: RenderFrameContext, videoFrame: VideoFrame): Promise<void> {
+  private async renderFrame(context: VideoFrameContext, videoFrame: VideoFrame): Promise<void> {
     const imageLayer = context.images[0] ?? null;
-    const overlayImage = imageLayer ? (this.overlayImages.get(imageLayer.clip) ?? null) : null;
+    const overlayImage = imageLayer ? await imageLayer.clip.loadImageElement() : null;
 
-    await this.compositor.renderFrame(this.canvasContext, {
+    await this.gpuCompositor.renderFrame(this.canvasContext, {
       time: context.time,
       videoFrame,
       overlayImage,
@@ -79,7 +76,7 @@ export class FrameRender {
     });
   }
 
-  private async encodeFrame(context: RenderFrameContext): Promise<void> {
+  private async encodeFrame(context: VideoFrameContext): Promise<void> {
     const videoFrame = await this.exportCanvas.captureVideoFrame(
       this.device,
       context.timestampUs,

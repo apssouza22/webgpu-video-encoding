@@ -1,10 +1,9 @@
-import type { Composition, ExportProgress, ImageClip, RenderFrameContext, VideoClip } from '../types';
+import type {Composition, ExportProgress, VideoFrameContext, VideoClip, VideoLayerClip} from '../types';
 import { ExportCanvas } from '../gpu/ExportCanvas';
 import { GpuCompositor } from '../gpu/GpuCompositor';
 import { FrameRender } from './FrameRender';
 import { VideoEncoderService } from './VideoEncoderService';
 import { AudioEncoderService } from './AudioEncoderService';
-import { loadImage } from '../media/MediaLoader';
 import { extractAudioFromUrl } from '../media/AudioExtractor';
 import { buildRenderFrameContext } from '../composition';
 import type { DecodedVideoFrame } from '../media/VideoFrameSource';
@@ -26,16 +25,11 @@ export class GpuVideoExporter {
     const device = await adapter.requestDevice();
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
 
-    if (!composition.video) {
-      throw new Error('Composition must include at least one video layer');
-    }
-
     const exportCanvas = new ExportCanvas();
     let compositor: GpuCompositor | null = null;
 
     try {
-      await composition.openLayerSources();
-      const overlayImages = await this.loadOverlayImages(composition.imageLayers);
+      await composition.loadLayerSources();
 
       const exportDuration = composition.duration;
 
@@ -53,18 +47,17 @@ export class GpuVideoExporter {
         canvasFormat,
       );
 
-      const frameContexts = this.buildRenderFrameContexts(
+      const videoFrames = this.buildRenderFrameContexts(
         composition,
         totalFrames,
         frameDurationUs,
       );
-      await this.bindVideoFrameStreams(frameContexts);
+      await this.bindVideoFrameStreams(videoFrames);
 
       const frameRender = new FrameRender({
         frameDurationUs,
         compositor,
         canvasContext,
-        overlayImages,
         exportCanvas,
         device,
         videoEncoder,
@@ -73,8 +66,8 @@ export class GpuVideoExporter {
         onProgress,
       });
 
-      for (const renderFrame of frameContexts) {
-        await frameRender.renderAndEncode(renderFrame);
+      for (const frame of videoFrames) {
+        await frameRender.renderAndEncode(frame);
       }
 
       onProgress({
@@ -152,31 +145,46 @@ export class GpuVideoExporter {
     return { includeAudio, videoEncoder };
   }
 
-  private async loadOverlayImages(imageClips: ImageClip[]): Promise<Map<ImageClip, HTMLImageElement>> {
-    const overlayImages = new Map<ImageClip, HTMLImageElement>();
-    await Promise.all(
-      imageClips.map(async (clip) => {
-        overlayImages.set(clip, await loadImage(clip.url));
-      }),
-    );
-
-    return overlayImages;
-  }
-
   private buildRenderFrameContexts(
     composition: Composition,
     totalFrames: number,
     frameDurationUs: number,
-  ): RenderFrameContext[] {
+  ): VideoFrameContext[] {
     return Array.from({ length: totalFrames }, (_, frame) =>
       buildRenderFrameContext(composition, frame, frameDurationUs),
     );
   }
 
-  private async bindVideoFrameStreams(frameContexts: RenderFrameContext[]): Promise<void> {
+  private async bindVideoFrameStreams(videoFrames: VideoFrameContext[]): Promise<void> {
+    const streamsByClip = await this.getVideoStreams(videoFrames);
+
+    for (const context of videoFrames) {
+      for (const videoLayer of context.videos) {
+        this.bindStreamToVideoLayer(streamsByClip, videoLayer, context);
+      }
+    }
+  }
+
+  private bindStreamToVideoLayer(streamsByClip: Map<VideoClip, AsyncGenerator<DecodedVideoFrame>>, videoLayer: VideoLayerClip, context: VideoFrameContext) {
+    const stream = streamsByClip.get(videoLayer.clip);
+    if (!stream) {
+      return;
+    }
+
+    videoLayer.nextSourceFrame = async () => {
+      const result = await stream.next();
+      if (result.done) {
+        throw new Error(`MediaBunny video stream ended before export frame ${context.frame}`);
+      }
+
+      return result.value;
+    };
+  }
+
+  private async getVideoStreams(videoFrames: VideoFrameContext[]) {
     const timestampsByClip = new Map<VideoClip, number[]>();
 
-    for (const context of frameContexts) {
+    for (const context of videoFrames) {
       for (const videoLayer of context.videos) {
         const timestamps = timestampsByClip.get(videoLayer.clip) ?? [];
         timestamps.push(videoLayer.sourceTime);
@@ -188,24 +196,7 @@ export class GpuVideoExporter {
     for (const [clip, timestamps] of timestampsByClip) {
       streamsByClip.set(clip, await clip.framesAtTimestamps(timestamps));
     }
-
-    for (const context of frameContexts) {
-      for (const videoLayer of context.videos) {
-        const stream = streamsByClip.get(videoLayer.clip);
-        if (!stream) {
-          continue;
-        }
-
-        videoLayer.nextSourceFrame = async () => {
-          const result = await stream.next();
-          if (result.done) {
-            throw new Error(`MediaBunny video stream ended before export frame ${context.frame}`);
-          }
-
-          return result.value;
-        };
-      }
-    }
+    return streamsByClip;
   }
 }
 

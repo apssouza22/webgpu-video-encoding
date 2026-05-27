@@ -1,4 +1,4 @@
-import type { RenderFrameContext } from './types';
+import type { VideoFrameContext } from './types';
 import { Composition, ImageClip, VideoClip } from './types';
 
 export { Composition, ImageClip, VideoClip } from './types';
@@ -8,7 +8,7 @@ export function buildRenderFrameContext(
   composition: Composition,
   frame: number,
   frameDurationUs: number,
-): RenderFrameContext {
+): VideoFrameContext {
   const time = frame / composition.fps;
   return composition.getFrameContextAtTime(time, frame, frameDurationUs);
 }

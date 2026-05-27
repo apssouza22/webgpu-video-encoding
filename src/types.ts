@@ -2,6 +2,7 @@ import {
   MediaBunnyVideoFrameSource,
   type DecodedVideoFrame,
 } from './media/VideoFrameSource';
+import { loadImage } from './media/MediaLoader';
 
 export type ClipType = 'video' | 'image';
 
@@ -35,7 +36,7 @@ export abstract class Clip {
   }
 
   localTimeAt(time: number): number {
-    return time - this.start;
+    return time - this.start; // relative to clip start
   }
 
   timelineEnd(duration = this.duration): number {
@@ -59,7 +60,7 @@ export class VideoClip extends Clip {
     super(url, start, duration, x, y, width, height);
   }
 
-  async openSource(): Promise<MediaBunnyVideoFrameSource> {
+  async openVideoSource(): Promise<MediaBunnyVideoFrameSource> {
     if (!this.source) {
       this.source = await MediaBunnyVideoFrameSource.open(this.url);
       this.duration = this.resolveDurationFromSource();
@@ -77,12 +78,12 @@ export class VideoClip extends Clip {
   }
 
   async nextSourceFrame(sourceTime: number, frameIndex: number): Promise<DecodedVideoFrame> {
-    const source = await this.openSource();
+    const source = await this.openVideoSource();
     return source.frameAtTime(sourceTime, frameIndex);
   }
 
   async framesAtTimestamps(timestamps: Iterable<number>): Promise<AsyncGenerator<DecodedVideoFrame>> {
-    const source = await this.openSource();
+    const source = await this.openVideoSource();
     return source.framesAtTimestamps(timestamps);
   }
 
@@ -106,6 +107,7 @@ export class VideoClip extends Clip {
 
 export class ImageClip extends Clip {
   readonly type = 'image';
+  private image: HTMLImageElement | null = null;
 
   constructor(
     url: string,
@@ -118,6 +120,18 @@ export class ImageClip extends Clip {
     readonly opacity = 1,
   ) {
     super(url, start, duration, x, y, width, height);
+  }
+
+  async loadImageElement(): Promise<HTMLImageElement> {
+    if (!this.image) {
+      this.image = await loadImage(this.url);
+    }
+
+    return this.image;
+  }
+
+  disposeImage(): void {
+    this.image = null;
   }
 }
 
@@ -173,13 +187,28 @@ export class Composition {
     return this.imageLayers[0] ?? null;
   }
 
-  async openLayerSources(): Promise<void> {
-    await Promise.all(this.videoLayers.map((clip) => clip.openSource()));
+  async loadVideoSources(): Promise<void> {
+    await Promise.all(this.videoLayers.map((clip) => clip.openVideoSource()));
+  }
+
+  async loadImageSources(): Promise<void> {
+    await Promise.all(this.imageLayers.map((clip) => clip.loadImageElement()));
+  }
+
+  async loadLayerSources(): Promise<void> {
+    await Promise.all([
+      this.loadVideoSources(),
+      this.loadImageSources(),
+    ]);
   }
 
   disposeLayerSources(): void {
     for (const clip of this.videoLayers) {
       clip.disposeSource();
+    }
+
+    for (const clip of this.imageLayers) {
+      clip.disposeImage();
     }
   }
 
@@ -187,7 +216,7 @@ export class Composition {
     time: number,
     frame = Math.floor(time * this.fps),
     frameDurationUs = Math.round(1_000_000 / this.fps),
-  ): RenderFrameContext {
+  ): VideoFrameContext {
     const layers = this.layerList
       .map((clip) => this.createLayerContext(clip, time, frame))
       .filter((clip): clip is LayerClip => clip !== null);
@@ -250,7 +279,7 @@ export interface ImageLayerClip {
 
 export type LayerClip = VideoLayerClip | ImageLayerClip;
 
-export interface RenderFrameContext {
+export interface VideoFrameContext {
   frame: number;
   time: number;
   timestampUs: number;
