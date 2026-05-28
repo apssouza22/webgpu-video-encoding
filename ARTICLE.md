@@ -10,7 +10,7 @@ That is where WebCodecs changes the shape of browser video work.
 
 WebCodecs gives web applications direct access to browser media primitives such as `VideoFrame`, `AudioData`, `VideoEncoder`, `AudioEncoder`, `EncodedVideoChunk`, and `EncodedAudioChunk`. Instead of treating video as only an HTML media element or a canvas trick, an application can work with frames and encoded chunks directly. When the browser, operating system, codec, and hardware support it, those encode and decode operations can use platform hardware acceleration.
 
-The companion demo for this article is available on GitHub: [apssouza22/webgpu-video-encoding](https://github.com/apssouza22/webgpu-video-encoding).
+The companion demo for this article is available on GitHub: [apssouza22/webgpu-video-encoding](https://github.com/apssouza22/webgpu-video-encoding). You can also try the live demo at [apssouza22.github.io/webgpu-video-encoding](https://apssouza22.github.io/webgpu-video-encoding/).
 
 The demo is intentionally small, but it walks through the full loop:
 
