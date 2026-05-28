@@ -33,24 +33,7 @@ An MP4 file is a container. It usually contains at least one video track and oft
 
 To process media, the app has to move through a pipeline:
 
-```mermaid
-flowchart TD
-  inputMp4["Input MP4 file"] --> demux["Demux container with MediaBunny"]
-  demux --> videoSamples["Compressed video samples"]
-  demux --> audioSamples["Compressed audio samples"]
-  videoSamples --> videoFrames["Decoded VideoFrame objects"]
-  audioSamples --> audioBuffers["Decoded audio buffers"]
-  videoFrames --> webgpu["WebGPU frame processing"]
-  webgpu --> renderedFrames["Rendered VideoFrame objects"]
-  audioBuffers --> audioMix["Timeline audio mix"]
-  renderedFrames --> videoEncoder["WebCodecs VideoEncoder"]
-  audioMix --> audioEncoder["WebCodecs AudioEncoder"]
-  videoEncoder --> encodedVideo["EncodedVideoChunk stream"]
-  audioEncoder --> encodedAudio["EncodedAudioChunk stream"]
-  encodedVideo --> mux["Mux MP4 with MediaBunny"]
-  encodedAudio --> mux
-  mux --> outputMp4["Output MP4 file"]
-```
+![Media pipeline](./assets/diagrams/media-pipeline.drawio.png)
 
 WebCodecs is responsible for the codec parts of that diagram: turning decoded frames into encoded chunks, and in lower-level pipelines, turning encoded chunks back into decoded frames. It is not a complete media file toolkit by itself.
 
@@ -84,20 +67,7 @@ A multiplexer does the opposite. It takes encoded media data and writes a new co
 
 That makes MediaBunny a natural partner for WebCodecs:
 
-```mermaid
-flowchart LR
-  inputFile["Media file: MP4, WebM, MOV"] --> demuxer["MediaBunny demuxer"]
-  demuxer --> trackInfo["Tracks and metadata"]
-  demuxer --> compressedSamples["Compressed samples"]
-  compressedSamples --> webCodecsDecode["WebCodecs decode"]
-  webCodecsDecode --> rawFrames["VideoFrame and AudioData"]
-  rawFrames --> processing["App processing"]
-  processing --> webCodecsEncode["WebCodecs encode"]
-  webCodecsEncode --> encodedChunks["Encoded chunks"]
-  encodedChunks --> muxer["MediaBunny muxer"]
-  trackInfo --> muxer
-  muxer --> outputFile["New media file"]
-```
+![MediaBunny and WebCodecs](./assets/diagrams/mediabunny-webcodecs.drawio.png)
 
 In practical terms, MediaBunny helps with the work that sits around WebCodecs:
 
@@ -295,14 +265,7 @@ That `VideoFrame` becomes the input to `VideoEncoder`.
 
 This is the bridge that makes the architecture interesting:
 
-```mermaid
-flowchart LR
-  decodedFrame["Decoded VideoFrame"] --> externalTexture["WebGPU external texture"]
-  externalTexture --> shaderPass["WGSL compositing pass"]
-  shaderPass --> offscreenCanvas["WebGPU OffscreenCanvas"]
-  offscreenCanvas --> renderedFrame["Rendered VideoFrame"]
-  renderedFrame --> videoEncoder["WebCodecs VideoEncoder"]
-```
+![WebGPU frame processing](./assets/diagrams/webgpu-frame-processing.drawio.png)
 
 The app does not use WebGPU instead of WebCodecs. It uses WebGPU with WebCodecs. Decode gives the app frames. WebGPU processes those frames. Encode compresses the processed result.
 
@@ -563,49 +526,7 @@ This is the part many WebCodecs examples skip. Encoding a chunk is not the same 
 
 Putting the pieces together, the export has two major flows: an audio flow that prepares AAC chunks, and a video flow that renders and encodes every output frame.
 
-```mermaid
-sequenceDiagram
-  participant User as User
-  participant CE as CompositionExporter
-  participant C as Composition
-  participant AE as AudioExport
-  participant AES as AudioEncoderService
-  participant VE as VideoExport
-  participant VFS as MediaBunnyVideoFrameSource
-  participant FR as FrameRender
-  participant GPU as GpuCompositor
-  participant EC as ExporterCanvas
-  participant VES as VideoEncoderService
-  participant MB as MediaBunnyMuxer
-
-  User->>CE: Export composition
-  CE->>C: loadLayerSources()
-  CE->>AE: create(audioLayers, duration)
-  AE->>AE: decode clips and mix with OfflineAudioContext
-  CE->>VES: create encoder and probe H.264 hardware acceleration
-  AE->>AES: encode mixed AudioBuffer
-  AES->>VES: addAudioChunk()
-  VES->>MB: queue AAC packets
-  CE->>VE: create(composition, videoEncoder)
-  VE->>C: getAllFrames()
-  VE->>VFS: bind timestamp streams for active clips
-  loop Each output frame
-    VE->>FR: renderAndEncode(frameContext)
-    FR->>VFS: nextSourceFrame()
-    VFS-->>FR: decoded source VideoFrame
-    FR->>GPU: renderFrame(videoFrame, overlays)
-    GPU->>GPU: importExternalTexture and composite
-    GPU->>EC: render to OffscreenCanvas
-    FR->>EC: captureVideoFrame()
-    EC-->>FR: rendered VideoFrame
-    FR->>VES: encodeVideoFrame()
-    VES->>MB: queue H.264 packet
-  end
-  CE->>VES: finish()
-  VES->>MB: finalize MP4
-  MB-->>CE: video/mp4 Blob
-  CE-->>User: download composition-export.mp4
-```
+![Project export flow](./assets/diagrams/export-sequence.drawio.png)
 
 The flow is deliberately explicit. Export is not a single browser API call. It is a pipeline of decode, timing, rendering, encoding, muxing, and cleanup.
 

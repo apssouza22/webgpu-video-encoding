@@ -1,0 +1,223 @@
+<mxfile host="app.diagrams.net" modified="2026-05-28T10:57:00.000Z" agent="Cursor" version="24.7.17" type="device">
+  <diagram id="media-pipeline" name="Media Pipeline">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1500" pageHeight="1250" math="0" shadow="0" defaultFontFamily="Noto Sans JP">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="media-title" value="Media Pipeline" style="text;html=1;fontSize=32;fontStyle=1;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="30" width="340" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="media-meta" value="Description: Browser-native decode, GPU processing, WebCodecs encode, and MP4 muxing&lt;br&gt;Author: Alexsandro Souza&lt;br&gt;Version: 1.0&lt;br&gt;Last updated: 2026-05-28" style="text;html=1;fontSize=14;fontColor=#666666;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="78" width="720" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-input" target="m-demux">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-demux" target="m-video-samples">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-demux" target="m-audio-samples">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-video-samples" target="m-video-frames">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-audio-samples" target="m-audio-buffers">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-video-frames" target="m-webgpu">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-webgpu" target="m-rendered-frames">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-audio-buffers" target="m-audio-mix">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-rendered-frames" target="m-video-encoder">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-audio-mix" target="m-audio-encoder">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-video-encoder" target="m-encoded-video">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-audio-encoder" target="m-encoded-audio">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-encoded-video" target="m-mux">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-encoded-audio" target="m-mux">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-e15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="m-mux" target="m-output">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-input" value="Input MP4 file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="580" y="170" width="280" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-demux" value="Demux container&lt;br&gt;with MediaBunny" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="580" y="290" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-video-samples" value="Compressed video samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="430" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-audio-samples" value="Compressed audio samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="430" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-video-frames" value="Decoded VideoFrame objects" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="560" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-audio-buffers" value="Decoded audio buffers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="560" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-webgpu" value="WebGPU frame processing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="690" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-rendered-frames" value="Rendered VideoFrame objects" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="820" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-audio-mix" value="Timeline audio mix" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="690" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-video-encoder" value="WebCodecs VideoEncoder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="950" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-audio-encoder" value="WebCodecs AudioEncoder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="820" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-encoded-video" value="EncodedVideoChunk stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="230" y="1080" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-encoded-audio" value="EncodedAudioChunk stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="910" y="950" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-mux" value="Mux MP4&lt;br&gt;with MediaBunny" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1080" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m-output" value="Output MP4 file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1200" width="280" height="70" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="mediabunny-webcodecs" name="MediaBunny and WebCodecs">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1800" pageHeight="650" math="0" shadow="0" defaultFontFamily="Noto Sans JP">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="mw-title" value="MediaBunny and WebCodecs" style="text;html=1;fontSize=32;fontStyle=1;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="520" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="mw-meta" value="Description: How MediaBunny wraps container work around WebCodecs processing&lt;br&gt;Author: Alexsandro Souza&lt;br&gt;Version: 1.0&lt;br&gt;Last updated: 2026-05-28" style="text;html=1;fontSize=14;fontColor=#666666;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="50" y="78" width="760" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="mw-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-input" target="mw-demuxer"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-demuxer" target="mw-track"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-demuxer" target="mw-samples"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-samples" target="mw-decode"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-decode" target="mw-raw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-raw" target="mw-processing"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-processing" target="mw-encode"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-encode" target="mw-chunks"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-chunks" target="mw-muxer"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-track" target="mw-muxer"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1400" y="230"/></Array></mxGeometry></mxCell>
+        <mxCell id="mw-e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="mw-muxer" target="mw-output"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="mw-input" value="Media file&lt;br&gt;MP4, WebM, MOV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="50" y="300" width="190" height="80" as="geometry"/></mxCell>
+        <mxCell id="mw-demuxer" value="MediaBunny demuxer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="300" y="300" width="210" height="80" as="geometry"/></mxCell>
+        <mxCell id="mw-track" value="Tracks and metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="600" y="190" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-samples" value="Compressed samples" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="600" y="360" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-decode" value="WebCodecs decode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="880" y="360" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-raw" value="VideoFrame&lt;br&gt;and AudioData" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1160" y="360" width="210" height="80" as="geometry"/></mxCell>
+        <mxCell id="mw-processing" value="App processing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1440" y="360" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-encode" value="WebCodecs encode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1440" y="500" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-chunks" value="Encoded chunks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1160" y="500" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-muxer" value="MediaBunny muxer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="880" y="500" width="210" height="70" as="geometry"/></mxCell>
+        <mxCell id="mw-output" value="New media file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="600" y="500" width="210" height="70" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="webgpu-frame-processing" name="WebGPU Frame Processing">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1600" pageHeight="420" math="0" shadow="0" defaultFontFamily="Noto Sans JP">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="wg-title" value="WebGPU Frame Processing" style="text;html=1;fontSize=32;fontStyle=1;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="50" y="30" width="520" height="45" as="geometry"/></mxCell>
+        <mxCell id="wg-meta" value="Description: GPU texture import, shader compositing, capture, and WebCodecs encoding&lt;br&gt;Author: Alexsandro Souza&lt;br&gt;Version: 1.0&lt;br&gt;Last updated: 2026-05-28" style="text;html=1;fontSize=14;fontColor=#666666;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="50" y="78" width="760" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="wg-decoded" target="wg-texture"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="wg-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="wg-texture" target="wg-shader"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="wg-e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="wg-shader" target="wg-canvas"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="wg-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="wg-canvas" target="wg-rendered"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="wg-e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#666666;fontFamily=Noto Sans JP;fontSize=16;" edge="1" parent="1" source="wg-rendered" target="wg-encoder"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="wg-decoded" value="Decoded VideoFrame" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="50" y="230" width="220" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-texture" value="WebGPU external texture" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="320" y="230" width="240" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-shader" value="WGSL compositing pass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="610" y="230" width="240" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-canvas" value="WebGPU OffscreenCanvas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="900" y="230" width="250" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-rendered" value="Rendered VideoFrame" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1200" y="230" width="220" height="80" as="geometry"/></mxCell>
+        <mxCell id="wg-encoder" value="WebCodecs VideoEncoder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=18;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="1470" y="230" width="250" height="80" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="export-sequence" name="Export Sequence">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2100" pageHeight="1200" math="0" shadow="0" defaultFontFamily="Noto Sans JP">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="seq-title" value="Project Export Flow" style="text;html=1;fontSize=32;fontStyle=1;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="40" y="30" width="460" height="45" as="geometry"/></mxCell>
+        <mxCell id="seq-meta" value="Description: Time-ordered export flow across composition, audio, video, GPU rendering, encoding, and muxing&lt;br&gt;Author: Alexsandro Souza&lt;br&gt;Version: 1.0&lt;br&gt;Last updated: 2026-05-28" style="text;html=1;fontSize=14;fontColor=#666666;fontFamily=Noto Sans JP;strokeColor=none;fillColor=none;align=left;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="40" y="78" width="900" height="80" as="geometry"/></mxCell>
+        <mxCell id="seq-loop-frame" value="Each output frame" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;strokeWidth=2;dashed=1;fontSize=18;fontFamily=Noto Sans JP;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1"><mxGeometry x="745" y="590" width="980" height="335" as="geometry"/></mxCell>
+        <mxCell id="seq-l-user" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="120" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-ce" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="280" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-c" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="440" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-ae" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="600" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-aes" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="760" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-ve" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="920" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-vfs" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1080" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-fr" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1240" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-gpu" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1400" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-ec" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1560" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-ves" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1720" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-l-mb" style="shape=line;html=1;strokeWidth=2;dashed=1;strokeColor=#999999;fontFamily=Noto Sans JP;" vertex="1" parent="1"><mxGeometry x="1880" y="250" width="1" height="820" as="geometry"/></mxCell>
+        <mxCell id="seq-user" value="User" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="45" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-ce" value="CompositionExporter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="205" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-c" value="Composition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="365" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-ae" value="AudioExport" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="525" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-aes" value="AudioEncoderService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="685" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-ve" value="VideoExport" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="845" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-vfs" value="MediaBunny&lt;br&gt;VideoFrameSource" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=15;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1005" y="175" width="150" height="65" as="geometry"/></mxCell>
+        <mxCell id="seq-fr" value="FrameRender" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1165" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-gpu" value="GpuCompositor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1325" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-ec" value="ExporterCanvas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1485" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-ves" value="VideoEncoderService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1645" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="seq-mb" value="MediaBunnyMuxer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=16;fontFamily=Noto Sans JP;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1805" y="180" width="150" height="55" as="geometry"/></mxCell>
+        <mxCell id="msg1" value="Export composition" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="120" y="280" as="sourcePoint"/><mxPoint x="280" y="280" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg2" value="loadLayerSources()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="320" as="sourcePoint"/><mxPoint x="440" y="320" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg3" value="create(audioLayers, duration)" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="360" as="sourcePoint"/><mxPoint x="600" y="360" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg4" value="decode clips and mix with OfflineAudioContext" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="600" y="400" as="sourcePoint"/><mxPoint x="675" y="400" as="targetPoint"/><Array as="points"><mxPoint x="675" y="425"/><mxPoint x="600" y="425"/></Array></mxGeometry></mxCell>
+        <mxCell id="msg5" value="create encoder and probe H.264 hardware acceleration" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="465" as="sourcePoint"/><mxPoint x="1720" y="465" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg6" value="encode mixed AudioBuffer" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="600" y="505" as="sourcePoint"/><mxPoint x="760" y="505" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg7" value="addAudioChunk()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="760" y="545" as="sourcePoint"/><mxPoint x="1720" y="545" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg8" value="queue AAC packets" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1720" y="585" as="sourcePoint"/><mxPoint x="1880" y="585" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg9" value="create(composition, videoEncoder)" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="625" as="sourcePoint"/><mxPoint x="920" y="625" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg10" value="getAllFrames()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="920" y="665" as="sourcePoint"/><mxPoint x="440" y="665" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg11" value="bind timestamp streams for active clips" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="920" y="705" as="sourcePoint"/><mxPoint x="1080" y="705" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg12" value="renderAndEncode(frameContext)" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="920" y="745" as="sourcePoint"/><mxPoint x="1240" y="745" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg13" value="nextSourceFrame()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1240" y="785" as="sourcePoint"/><mxPoint x="1080" y="785" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg14" value="decoded source VideoFrame" style="endArrow=open;dashed=1;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1080" y="825" as="sourcePoint"/><mxPoint x="1240" y="825" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg15" value="renderFrame(videoFrame, overlays)" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1240" y="865" as="sourcePoint"/><mxPoint x="1400" y="865" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg16" value="importExternalTexture and composite" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1400" y="905" as="sourcePoint"/><mxPoint x="1475" y="905" as="targetPoint"/><Array as="points"><mxPoint x="1475" y="930"/><mxPoint x="1400" y="930"/></Array></mxGeometry></mxCell>
+        <mxCell id="msg17" value="render to OffscreenCanvas" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1400" y="970" as="sourcePoint"/><mxPoint x="1560" y="970" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg18" value="captureVideoFrame()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1240" y="1010" as="sourcePoint"/><mxPoint x="1560" y="1010" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg19" value="rendered VideoFrame" style="endArrow=open;dashed=1;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1560" y="1050" as="sourcePoint"/><mxPoint x="1240" y="1050" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg20" value="encodeVideoFrame()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1240" y="1090" as="sourcePoint"/><mxPoint x="1720" y="1090" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg21" value="queue H.264 packet" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1720" y="1130" as="sourcePoint"/><mxPoint x="1880" y="1130" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg22" value="finish()" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="1170" as="sourcePoint"/><mxPoint x="1720" y="1170" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg23" value="finalize MP4" style="endArrow=block;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1720" y="1210" as="sourcePoint"/><mxPoint x="1880" y="1210" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg24" value="video/mp4 Blob" style="endArrow=open;dashed=1;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="1880" y="1250" as="sourcePoint"/><mxPoint x="280" y="1250" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="msg25" value="download composition-export.mp4" style="endArrow=open;dashed=1;html=1;rounded=0;strokeWidth=2;fontSize=14;fontFamily=Noto Sans JP;strokeColor=#666666;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="280" y="1290" as="sourcePoint"/><mxPoint x="120" y="1290" as="targetPoint"/></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -11,6 +11,8 @@ For a longer write-up on browser-native video decode, processing, encoding,
 and MP4 export with WebCodecs, WebGPU, and MediaBunny, read
 [ARTICLE.md](./ARTICLE.md).
 
+![Media pipeline](./assets/diagrams/media-pipeline.drawio.png)
+
 This is not a full editor. It is a focused playground for testing the building
 blocks of a GPU-powered video compositor.
 

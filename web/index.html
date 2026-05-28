@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video processing with WebGPU</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top left, rgba(126, 184, 255, 0.16), transparent 32rem),
+          #111;
+        color: #eee;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      .hero {
+        margin-bottom: 24px;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        color: #7eb8ff;
+        font: 700 12px/1.4 ui-monospace, monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 6vw, 4.5rem);
+        line-height: 0.95;
+      }
+      .intro {
+        max-width: 760px;
+        margin: 0;
+        color: #d7d7d7;
+        font-size: 1.1rem;
+        line-height: 1.6;
+      }
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 20px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .pipeline li {
+        border: 1px solid #2b2b2b;
+        border-radius: 12px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .pipeline strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #fff;
+      }
+      .pipeline span {
+        color: #bdbdbd;
+        font-size: 0.92rem;
+        line-height: 1.4;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 16px 0;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 16px;
+        background: #7eb8ff;
+        color: #07121f;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .composition-player {
+        position: relative;
+        width: min(100%, 960px);
+        overflow: hidden;
+        border: 1px solid #2b2b2b;
+        border-radius: 12px;
+        background: #000;
+      }
+      .composition-player__canvas {
+        display: block;
+        width: 100%;
+      }
+      .composition-player__controls {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #181818;
+      }
+      .composition-player__controls input[type='range'] {
+        width: 100%;
+      }
+      .composition-player__time {
+        min-width: 72px;
+        text-align: right;
+        font: 13px/1.5 ui-monospace, monospace;
+        color: #bbb;
+      }
+      #status {
+        white-space: pre-wrap;
+        font: 13px/1.5 ui-monospace, monospace;
+        max-width: 720px;
+      }
+      a {
+        color: #7eb8ff;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-DhRbRYTg.js"></script>
+  </head>
+  <body>
+    <main>
+      <section class="hero" aria-labelledby="project-title">
+        <p class="eyebrow">WebGPU video processing experiment</p>
+        <h1 id="project-title">Video processing with WebGPU</h1>
+        <p class="intro">
+          This project explores browser-native video composition using WebGPU for
+          high-performance layer rendering. It previews a timeline with multiple
+          video, image, and audio layers, then exports the composed frames through
+          WebCodecs and MediaBunny as an MP4.
+        </p>
+        <ul class="pipeline" aria-label="Video processing pipeline">
+          <li>
+            <strong>Compose on GPU</strong>
+            <span>Video frames and image overlays are rendered with WebGPU.</span>
+          </li>
+          <li>
+            <strong>Preview timeline</strong>
+            <span>Use play, pause, and scrub controls before exporting.</span>
+          </li>
+          <li>
+            <strong>Export MP4</strong>
+            <span>Frames are captured from OffscreenCanvas and encoded with WebCodecs.</span>
+          </li>
+        </ul>
+      </section>
+      <div id="player"></div>
+      <div class="actions">
+        <button id="export-button" type="button" disabled>Export composition</button>
+        <p id="status">Initializing…</p>
+      </div>
+    </main>
+  </body>
+</html>
