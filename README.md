@@ -7,6 +7,10 @@ composition work stays on the GPU: decode media frames, combine multiple visual
 layers, preview the timeline, render export frames through an `OffscreenCanvas`,
 encode with WebCodecs, and mux the result into an MP4.
 
+For a longer write-up on browser-native video decode, processing, encoding,
+and MP4 export with WebCodecs, WebGPU, and MediaBunny, read
+[ARTICLE.md](./ARTICLE.md).
+
 This is not a full editor. It is a focused playground for testing the building
 blocks of a GPU-powered video compositor.
 
