@@ -1,4 +1,4 @@
-# gpu-video-export
+# From WebGPU Compositing to WebCodecs Encoding
 
 An experimental browser project for exploring high-performance video processing with **WebGPU**.
 

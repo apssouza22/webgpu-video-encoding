@@ -1,6 +1,6 @@
-# WebCodecs: Browser-Native Video Decode, Processing, and Export
+# Part 2: From WebGPU Compositing to WebCodecs Export
 
-In the previous article, [WebGPU is the secret weapon for browser video processing](https://www.linkedin.com/pulse/webgpu-secret-weapon-browser-video-processing-alexsandro-souza-8u9gf/), I focused on the GPU side of browser media work: importing decoded frames into WebGPU, running shader passes, and keeping expensive pixel processing away from JavaScript loops.
+In the previous article, [Part 1: WebGPU is the secret weapon for browser video processing](https://www.linkedin.com/pulse/webgpu-secret-weapon-browser-video-processing-alexsandro-souza-8u9gf/), I focused on the GPU side of browser media work: importing decoded frames into WebGPU, running shader passes, and keeping expensive pixel processing away from JavaScript loops.
 
 That is still the right mental model for effects and compositing.
 
