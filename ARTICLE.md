@@ -522,13 +522,6 @@ return new Blob([buffer], {
 
 This is the part many WebCodecs examples skip. Encoding a chunk is not the same thing as exporting a file. If you want a normal MP4 that can be downloaded, uploaded, or played elsewhere, you need muxing.
 
-## The Project Export Flow
-
-Putting the pieces together, the export has two major flows: an audio flow that prepares AAC chunks, and a video flow that renders and encodes every output frame.
-
-![Project export flow](./assets/diagrams/export-sequence.drawio.png)
-
-The flow is deliberately explicit. Export is not a single browser API call. It is a pipeline of decode, timing, rendering, encoding, muxing, and cleanup.
 
 ## Practical Lessons for Developers
 
