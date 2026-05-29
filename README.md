@@ -1,4 +1,4 @@
-# From WebGPU Compositing to WebCodecs Encoding
+# WebCodecs + WebGPU: Building a Hardware-Accelerated Browser Video Pipeline
 
 An experimental browser project for exploring high-performance video processing with **WebGPU**.
 

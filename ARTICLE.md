@@ -1,4 +1,4 @@
-# Part 2: From WebGPU Compositing to WebCodecs Export
+# Part 2: WebCodecs + WebGPU - Hardware-Accelerated Video Processing Pipeline in the Browser
 
 In the previous article, [Part 1: WebGPU is the secret weapon for browser video processing](https://www.linkedin.com/pulse/webgpu-secret-weapon-browser-video-processing-alexsandro-souza-8u9gf/), I focused on the GPU side of browser media work: importing decoded frames into WebGPU, running shader passes, and keeping expensive pixel processing away from JavaScript loops.
 
